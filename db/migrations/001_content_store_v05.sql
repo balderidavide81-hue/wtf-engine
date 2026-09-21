@@ -32,6 +32,14 @@ create table if not exists articles (
 );
 create index if not exists articles_published_at_idx on articles (published_at desc);
 
+create table if not exists generation_leases (
+  lease_key text primary key,
+  owner_token uuid not null,
+  acquired_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  check (expires_at > acquired_at)
+);
+
 create table if not exists pipeline_runs (
   id uuid primary key default gen_random_uuid(),
   run_kind text not null default 'daily',
