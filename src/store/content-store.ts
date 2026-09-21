@@ -1,4 +1,4 @@
-import type { PersistedPipelineRun, DailyEditionRecord } from "./types.js";
+import type { PersistedPipelineRun, DailyEditionRecord, EditorialEditionRecord, CardLifecycleStatus, EditionStatus } from "./types.js";
 
 export interface ContentStore {
   /** Returns stable article IDs already processed by Scout, allowing AI spend to be skipped. */
@@ -18,4 +18,7 @@ export interface ContentStore {
   appendDraftEdition(editionDate: string, cardIds: string[]): Promise<DailyEditionRecord>;
 
   getEdition(editionDate: string): Promise<DailyEditionRecord | null>;
+  getEditorialEdition(editionDate: string): Promise<EditorialEditionRecord | null>;
+  setCardLifecycle(cardId: string, status: Extract<CardLifecycleStatus, "reviewed" | "rejected">): Promise<void>;
+  setEditionStatus(editionDate: string, status: Extract<EditionStatus, "reviewed" | "published">): Promise<DailyEditionRecord>;
 }
