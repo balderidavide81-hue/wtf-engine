@@ -17,6 +17,7 @@ export interface AiUsageDiagnostics {
 }
 
 export const SCOUT_BATCH_LIMIT = 30;
+export const SCOUT_MAX_OUTPUT_TOKENS = 8_000;
 
 export interface ScoutBatch {
   results: ScoutResult[];
@@ -170,6 +171,7 @@ export class OpenAIScout implements Scout {
     const client = new OpenAI({ apiKey: this.apiKey });
     const response = await client.responses.create({
       model,
+      max_output_tokens: SCOUT_MAX_OUTPUT_TOKENS,
       instructions,
       input: JSON.stringify(candidates.map(compactCandidate)),
       text: {
