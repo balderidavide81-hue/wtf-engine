@@ -1,3 +1,5 @@
+> Historical v0.4 deployment note. Do not use this file as the v0.5 rollout procedure; use `docs/V05_LIVE_ROLLOUT_CHECKLIST.md`.
+
 # Deployment sync — 2026-09-21
 
 This deployment marker intentionally triggers a fresh Vercel production deployment from the current `main` HEAD.
