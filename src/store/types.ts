@@ -55,6 +55,7 @@ export interface PublicGameCardRecord {
   resolvedOptionIndex: number | null;
   reveal: string | null;
   voidReason: string | null;
+  resolutionEvidenceUrl: string | null;
   sourceName: string;
   sourceUrl: string;
 }
