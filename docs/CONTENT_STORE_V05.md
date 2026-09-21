@@ -89,7 +89,7 @@ Daily edition dates now use the explicit IANA timezone `EDITION_TIME_ZONE` (defa
 
 Article persistence reconciles identity using either stable external ID or canonical URL before insert, avoiding the previous failure mode where a feed changed its external ID while keeping the same canonical story URL.
 
-Residual concurrency note: database uniqueness prevents duplicate persisted Scout/Editor rows for the same prompt version, but two truly simultaneous generation requests can still both pass the pre-AI processed check and spend AI before either transaction commits. Keep `/api/daily` scheduler/manual invocation single-flight until a database-backed claim/lease is added. This is documented rather than hidden and is not a gameplay-read risk.
+`/api/daily` now acquires an expiring database-backed `daily-generation` lease before collection/AI work. A second overlapping request receives `409 generation_already_running`. The lease is released in `finally` and also has a database expiry so a crashed serverless invocation cannot block generation indefinitely.
 
 
 ## Editorial freeze and retry semantics
@@ -115,3 +115,8 @@ A higher-depth repository audit after the initial v0.5 implementation added the 
 - AI batch caps are defined once in the AI modules and reused by APIs/pipeline.
 - card invariants are duplicated at the database layer so direct writes cannot bypass core constraints.
 - local secrets/build artifacts are excluded through `.gitignore`.
+
+
+## Generation single-flight
+
+The migration includes `generation_leases`. Production generation acquires a 10-minute lease before any paid AI work. This closes the previously documented race where two serverless instances could both pass the processed-story check and pay Scout/Editor simultaneously.
