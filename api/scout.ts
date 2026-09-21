@@ -1,8 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { OpenAIScout } from "../src/ai/scout.js";
 import type { ArticleCandidate } from "../src/domain/types.js";
+import { hasBearerSecret } from "../src/auth/bearer.js";
 
 const MAX_BATCH = 30;
+const MAX_FIELD_CHARS = 12_000;
+const MAX_BATCH_CHARS = 120_000;
 
 function isCandidate(value: unknown): value is ArticleCandidate {
   if (!value || typeof value !== "object") return false;
@@ -10,10 +13,20 @@ function isCandidate(value: unknown): value is ArticleCandidate {
   return typeof c.id === "string"
     && typeof c.sourceName === "string"
     && typeof c.sourceUrl === "string"
-    && typeof c.title === "string";
+    && typeof c.title === "string"
+    && c.id.length <= MAX_FIELD_CHARS
+    && c.sourceName.length <= MAX_FIELD_CHARS
+    && c.sourceUrl.length <= MAX_FIELD_CHARS
+    && c.title.length <= MAX_FIELD_CHARS
+    && (c.summary === undefined || (typeof c.summary === "string" && c.summary.length <= MAX_FIELD_CHARS))
+    && (c.body === undefined || (typeof c.body === "string" && c.body.length <= MAX_FIELD_CHARS));
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Cache-Control", "no-store");
+  if (!hasBearerSecret(req, process.env.GENERATION_API_TOKEN)) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "method_not_allowed" });
@@ -26,14 +39,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (candidates.length === 0 || candidates.length > MAX_BATCH) {
     return res.status(400).json({ error: "batch_size", min: 1, max: MAX_BATCH });
   }
+  const batchChars = candidates.reduce((total, candidate) => total + JSON.stringify(candidate).length, 0);
+  if (batchChars > MAX_BATCH_CHARS) {
+    return res.status(413).json({ error: "batch_too_large", maxChars: MAX_BATCH_CHARS });
+  }
 
   try {
     const scout = new OpenAIScout();
-    const results = await scout.classify(candidates);
+    const batch = await scout.classifyDetailed(candidates);
     return res.status(200).json({
-      model: process.env.OPENAI_SCOUT_MODEL ?? "gpt-5.6-luna",
-      count: results.length,
-      results
+      model: batch.usage.model,
+      count: batch.results.length,
+      usage: batch.usage,
+      results: batch.results
     });
   } catch (error) {
     console.error("scout_failed", error);
