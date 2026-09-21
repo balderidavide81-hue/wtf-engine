@@ -109,3 +109,22 @@ A real TypeScript typecheck/build has not been executed by this source-only conn
 Independent automated source verification is also not implemented yet. Human editorial source review remains the publication gate; the repository documentation now states this explicitly.
 
 Additional deep-audit hardening also added prompt-injection instructions for untrusted feed/model text, bounded RSS response/item/text volume, hashed source keys, evidence-URL validation, and version-bumped prompt provenance (`scout/v0.2`, `editor/inline-v0.3`).
+
+
+## Executed validation gate
+
+A one-shot GitHub Actions validation was executed on commit `138d465401865efbd2cceeea0064597328d6d670` (run `35605054548`) and completed successfully.
+
+The gate performed:
+- dependency installation on Node 22;
+- `npm run typecheck`;
+- PostgreSQL 18 startup;
+- first application of `db/migrations/001_content_store_v05.sql`;
+- second application of the same migration to verify idempotent re-application;
+- schema table-count verification;
+- valid PREDICT insert;
+- rejection of invalid plain-published PREDICT;
+- rejection of WTF card without a correct answer;
+- generation-lease SQL smoke test.
+
+The temporary CI workflow was removed immediately after the successful run to avoid consuming GitHub Actions quota on later feature-branch commits.
