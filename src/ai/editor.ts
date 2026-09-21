@@ -59,6 +59,7 @@ const schema = {
 } as const;
 
 export const EDITOR_BATCH_LIMIT = 12;
+export const EDITOR_MAX_OUTPUT_TOKENS = 6_000;
 
 function validateCardDraft(card: GameCardDraft): void {
   if (!card.hook.trim() || !card.question.trim() || !card.reveal.trim()) {
@@ -118,6 +119,7 @@ export class OpenAIEditor {
     const client = new OpenAI({ apiKey: this.apiKey });
     const response = await client.responses.create({
       model,
+      max_output_tokens: EDITOR_MAX_OUTPUT_TOKENS,
       instructions,
       input: JSON.stringify(eligible.map(compactEditorItem)),
       text: { format: { type: "json_schema", name: "wtf_editor_batch", strict: true, schema } }
