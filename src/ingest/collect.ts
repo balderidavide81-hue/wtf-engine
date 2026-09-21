@@ -4,6 +4,7 @@ import { RssSource } from "./rss.js";
 import { sourcesFromEnv } from "./sources.js";
 
 export interface CollectionReport {
+  sourceCount: number;
   fetched: number;
   kept: number;
   candidates: ArticleCandidate[];
@@ -26,5 +27,5 @@ export async function collect(): Promise<CollectionReport> {
   });
 
   const candidates = prefilter(raw);
-  return { fetched: raw.length, kept: candidates.length, candidates, errors };
+  return { sourceCount: sources.length, fetched: raw.length, kept: candidates.length, candidates, errors };
 }
