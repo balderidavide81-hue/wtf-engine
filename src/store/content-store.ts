@@ -5,6 +5,10 @@ export interface ContentStore {
   /** Returns candidate IDs already processed by Scout, matching either external identity or canonical URL. */
   findProcessedCandidateIds(candidates: ArticleCandidate[]): Promise<Set<string>>;
 
+  /** Acquires a short-lived cross-instance lease for paid generation. */
+  tryAcquireGenerationLease(leaseKey: string, ttlSeconds: number): Promise<string | null>;
+  releaseGenerationLease(leaseKey: string, ownerToken: string): Promise<void>;
+
   /**
    * Persists one completed generation. Implementations must upsert articles by
    * stable external/canonical identity so reruns do not duplicate source material.
