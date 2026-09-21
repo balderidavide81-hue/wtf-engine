@@ -1,12 +1,12 @@
-import { OpenAIScout, type AiUsageDiagnostics } from "../ai/scout.js";
-import { OpenAIEditor, type GameCardDraft } from "../ai/editor.js";
+import { OpenAIScout, SCOUT_BATCH_LIMIT, type AiUsageDiagnostics } from "../ai/scout.js";
+import { OpenAIEditor, EDITOR_BATCH_LIMIT, type GameCardDraft } from "../ai/editor.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
 import { diversifyQueue } from "./diversity.js";
 import type { ContentStore } from "../store/content-store.js";
 import { editionDateFor } from "../time/edition-date.js";
 
-const DEFAULT_SCOUT_LIMIT = 30;
+const DEFAULT_SCOUT_LIMIT = SCOUT_BATCH_LIMIT;
 
 function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
   const at = a.publishedAt ? Date.parse(a.publishedAt) : 0;
@@ -58,7 +58,7 @@ export interface DailyQueueReport {
 
 export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: ContentStore): Promise<DailyQueueReport> {
   const collection = await collect();
-  const scoutLimit = Math.max(1, Math.min(limit, 30));
+  const scoutLimit = Math.max(1, Math.min(limit, SCOUT_BATCH_LIMIT));
   const processedIds = store
     ? await store.findProcessedCandidateIds(collection.candidates)
     : new Set<string>();
@@ -94,8 +94,8 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
   const editorEligible = queue.filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED").length;
   const editorSubmittedItems = queue
     .filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED")
-    .slice(0, 12);
-  const edited = await editor.draft(queue);
+    .slice(0, EDITOR_BATCH_LIMIT);
+  const edited = await editor.draft(editorSubmittedItems);
   const submittedIds = new Set(editorSubmittedItems.map(item => item.candidate.id));
   const returnedIds = new Set(edited.cards.map(card => card.articleId));
   const editorOmittedArticleIds = editorSubmittedItems
