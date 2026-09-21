@@ -1,8 +1,9 @@
+import type { ArticleCandidate } from "../domain/types.js";
 import type { PersistedPipelineRun, DailyEditionRecord, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
 
 export interface ContentStore {
-  /** Returns stable article IDs already processed by Scout, allowing AI spend to be skipped. */
-  findProcessedExternalIds(externalIds: string[]): Promise<Set<string>>;
+  /** Returns candidate IDs already processed by Scout, matching either external identity or canonical URL. */
+  findProcessedCandidateIds(candidates: ArticleCandidate[]): Promise<Set<string>>;
 
   /**
    * Persists one completed generation. Implementations must upsert articles by
