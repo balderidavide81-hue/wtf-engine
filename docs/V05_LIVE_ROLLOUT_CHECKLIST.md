@@ -10,7 +10,7 @@ Move the v0.5 content store live with one controlled database migration and one 
 
 1. Freeze source changes for the rollout window.
 2. Confirm the feature branch contains the complete v0.5 block.
-3. Compiled/schema validation gate: PASS on commit `138d465401865efbd2cceeea0064597328d6d670` (Node 22 + PostgreSQL 18). Re-run only if application/schema code changes after that snapshot.
+3. Final compiled/schema validation gate: PASS on commit `cf2ecf8330a6a889f62a0e31f6d047b0f0bd0e1f` (run `35607388399`; Node 22 + PostgreSQL 18). Re-run only if application/schema code changes after that snapshot.
 4. Neon migration: APPLIED and post-verified on project `autumn-violet-57425012` / branch `main` on 2026-09-21.
 5. Confirm production has or will receive these server-only variables:
    - `DATABASE_URL`
