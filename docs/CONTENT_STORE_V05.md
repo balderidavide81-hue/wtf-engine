@@ -33,3 +33,11 @@ When `DATABASE_URL` is configured, `/api/daily` now uses the Neon store. Before 
 Without `DATABASE_URL`, the endpoint preserves the existing non-persistent behavior. This allows source work to remain deploy-safe until the migration and environment are deliberately enabled.
 
 The API report exposes `previouslyProcessed` and, when persistence is active, run/edition/card IDs for auditability.
+
+## Repeated-run safety
+
+A second generation run on the same UTC day is incremental. Existing edition cards are preserved and only newly persisted card IDs are appended. Repeating the same card ID is a no-op.
+
+Once an edition is `reviewed` or `published`, generation is not allowed to mutate its membership. This prevents a later scheduler/manual run from silently changing an edition that has already entered editorial workflow.
+
+Persistence diagnostics distinguish `newCardIds` from the complete `editionCardIds`.
