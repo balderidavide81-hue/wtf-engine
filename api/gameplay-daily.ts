@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
+import { editionDateFor } from "../src/time/edition-date.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "method_not_allowed" });
   }
-  const date = typeof req.query.date === "string" ? req.query.date : new Date().toISOString().slice(0, 10);
+  const date = typeof req.query.date === "string" ? req.query.date : editionDateFor();
   try {
     const edition = await new NeonContentStore().getPublishedEdition(date);
     if (!edition) return res.status(404).json({ error: "published_edition_not_found" });
