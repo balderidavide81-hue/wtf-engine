@@ -9,6 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const date = editionDateFromQuery(req.query.date);
   if (!date) return res.status(400).json({ error: "invalid_edition_date" });
+  if (!process.env.DATABASE_URL) return res.status(503).json({ error: "persistence_not_configured" });
   try {
     const edition = await new NeonContentStore().getPublishedEdition(date);
     if (!edition) return res.status(404).json({ error: "published_edition_not_found" });
