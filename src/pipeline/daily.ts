@@ -1,6 +1,7 @@
 import { OpenAIScout, type AiUsageDiagnostics } from "../ai/scout.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
+import { diversifyQueue } from "./diversity.js";
 
 const DEFAULT_SCOUT_LIMIT = 30;
 
@@ -26,7 +27,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
   const results = batch.results;
   const byId = new Map(candidates.map(candidate => [candidate.id, candidate]));
 
-  const queue = results
+  const rankedQueue = results
     .map(result => ({ candidate: byId.get(result.articleId), scout: result }))
     .filter((item): item is { candidate: ArticleCandidate; scout: ScoutResult } => Boolean(item.candidate))
     .sort((a, b) => {
@@ -38,6 +39,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
       return bScore - aScore;
     });
 
+  const queue = diversifyQueue(rankedQueue);
   const { candidates: _ignored, ...collectionSummary } = collection;
   return { collection: collectionSummary, scouted: candidates.length, ai: { scout: batch.usage }, queue };
 }

@@ -10,9 +10,11 @@ const DEFAULT_SOURCES: RssSourceConfig[] = [
 ];
 
 /**
- * Built-in sources are intentionally conservative: only verified machine-readable
- * feeds are enabled by default. WTF_RSS_SOURCES can extend the registry without
- * a code deploy.
+ * Source portfolio policy:
+ * - built-ins must be verified machine-readable feeds before they are enabled here;
+ * - WTF_RSS_SOURCES extends the portfolio without a code deploy;
+ * - source discovery candidates live in docs/SOURCE_PORTFOLIO.md and are promoted
+ *   only after feed availability, freshness and terms are checked.
  */
 export function sourcesFromEnv(): RssSourceConfig[] {
   const raw = process.env.WTF_RSS_SOURCES;
