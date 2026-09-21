@@ -1,5 +1,6 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 import type { ArticleCandidate } from "../domain/types.js";
+import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
 import { EDITOR_PROMPT_VERSION } from "../ai/editor.js";
 import type { ContentStore } from "./content-store.js";
@@ -370,8 +371,9 @@ export class NeonContentStore implements ContentStore {
     if (!Number.isInteger(input.outcomeOptionIndex) || input.outcomeOptionIndex < 0) {
       throw new Error("outcomeOptionIndex must be a non-negative integer");
     }
-    if (!input.evidenceUrl || !input.evidenceNote.trim()) {
-      throw new Error("Prediction resolution requires evidenceUrl and evidenceNote");
+    const evidenceUrl = canonicalizeHttpUrl(input.evidenceUrl);
+    if (!evidenceUrl || !input.evidenceNote.trim()) {
+      throw new Error("Prediction resolution requires a valid HTTP(S) evidenceUrl and evidenceNote");
     }
     const result = await this.pool.query(
       `update game_cards
@@ -389,7 +391,7 @@ export class NeonContentStore implements ContentStore {
           and lifecycle_status='open'
           and $2 < jsonb_array_length(options)
         returning id`,
-      [cardId, input.outcomeOptionIndex, input.evidenceUrl, input.evidenceNote.trim()]
+      [cardId, input.outcomeOptionIndex, evidenceUrl, input.evidenceNote.trim()]
     );
     if (result.rowCount === 0) {
       throw new Error(`Prediction ${cardId} is not open or the outcome index is invalid`);
@@ -398,6 +400,8 @@ export class NeonContentStore implements ContentStore {
 
   async voidPrediction(cardId: string, input: PredictionVoidInput): Promise<void> {
     if (!input.reason.trim()) throw new Error("Void reason is required");
+    const evidenceUrl = input.evidenceUrl ? canonicalizeHttpUrl(input.evidenceUrl) : null;
+    if (input.evidenceUrl && !evidenceUrl) throw new Error("Void evidenceUrl must be HTTP(S)");
     const result = await this.pool.query(
       `update game_cards
           set lifecycle_status='void',
@@ -409,7 +413,7 @@ export class NeonContentStore implements ContentStore {
               updated_at=now()
         where id=$1 and mode='PREDICT' and lifecycle_status='open'
         returning id`,
-      [cardId, input.reason.trim(), input.evidenceUrl ?? null]
+      [cardId, input.reason.trim(), evidenceUrl]
     );
     if (result.rowCount === 0) throw new Error(`Prediction ${cardId} is not open`);
   }
@@ -423,17 +427,20 @@ export class NeonContentStore implements ContentStore {
       [sourceKey(candidate.sourceName), candidate.sourceName]
     );
     const existing = await client.query(
-      "select id from articles where external_id=$1 or canonical_url=$2 limit 1",
+      "select id, external_id, canonical_url from articles where external_id=$1 or canonical_url=$2",
       [candidate.id, candidate.sourceUrl]
     );
-    if ((existing.rowCount ?? 0) > 0) {
+    if ((existing.rowCount ?? 0) > 1) {
+      throw new Error(`Article identity collision for ${candidate.id} / ${candidate.sourceUrl}`);
+    }
+    if ((existing.rowCount ?? 0) === 1) {
       const articleId = String(existing.rows[0].id);
       await client.query(
         `update articles set
-           source_id=$2, source_name=$3, source_url=$4, title=$5, summary=$6,
-           published_at=$7, language=$8, country=$9, last_seen_at=now()
+           external_id=$2, source_id=$3, source_name=$4, source_url=$5, canonical_url=$5,
+           title=$6, summary=$7, published_at=$8, language=$9, country=$10, last_seen_at=now()
          where id=$1`,
-        [articleId, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
+        [articleId, candidate.id, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
          candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null]
       );
       return articleId;
