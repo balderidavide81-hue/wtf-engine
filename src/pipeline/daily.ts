@@ -3,6 +3,7 @@ import { OpenAIEditor, type GameCardDraft } from "../ai/editor.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
 import { diversifyQueue } from "./diversity.js";
+import type { ContentStore } from "../store/content-store.js";
 
 const DEFAULT_SCOUT_LIMIT = 30;
 
@@ -41,6 +42,7 @@ function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): A
 
 export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
+  previouslyProcessed: number;
   scouted: number;
   editorEligible: number;
   editorSubmitted: number;
@@ -49,12 +51,17 @@ export interface DailyQueueReport {
   ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
   cards: GameCardDraft[];
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
+  persistence?: { runId: string; editionId: string; editionDate: string; cardIds: string[] };
 }
 
-export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<DailyQueueReport> {
+export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: ContentStore): Promise<DailyQueueReport> {
   const collection = await collect();
   const scoutLimit = Math.max(1, Math.min(limit, 30));
-  const candidates = selectScoutCandidates(collection.candidates, scoutLimit);
+  const processedIds = store
+    ? await store.findProcessedExternalIds(collection.candidates.map(candidate => candidate.id))
+    : new Set<string>();
+  const unseenCandidates = collection.candidates.filter(candidate => !processedIds.has(candidate.id));
+  const candidates = selectScoutCandidates(unseenCandidates, scoutLimit);
 
   const scout = new OpenAIScout();
   const batch = await scout.classifyDetailed(candidates);
@@ -93,8 +100,24 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
   }
   const totalEstimatedCostUsd = batch.usage.estimatedCostUsd + edited.usage.estimatedCostUsd;
   const { candidates: _ignored, ...collectionSummary } = collection;
+
+  let persistence: DailyQueueReport["persistence"];
+  if (store) {
+    const saved = await store.saveCompletedRun({
+      collection: collectionSummary,
+      candidates,
+      scoutResults: results,
+      cards: edited.cards,
+      ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd }
+    });
+    const editionDate = new Date().toISOString().slice(0, 10);
+    const edition = await store.saveDraftEdition(editionDate, saved.cardIds);
+    persistence = { runId: saved.runId, editionId: edition.id, editionDate, cardIds: saved.cardIds };
+  }
+
   return {
     collection: collectionSummary,
+    previouslyProcessed: processedIds.size,
     scouted: candidates.length,
     editorEligible,
     editorSubmitted: editorSubmittedItems.length,
@@ -102,6 +125,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
     edited: edited.cards.length,
     ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd },
     cards: edited.cards,
-    queue
+    queue,
+    ...(persistence ? { persistence } : {})
   };
 }
