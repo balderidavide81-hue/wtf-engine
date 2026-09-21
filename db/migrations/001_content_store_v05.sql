@@ -93,6 +93,15 @@ create table if not exists game_cards (
     check (mode <> 'PREDICT' or lifecycle_status = 'resolved' or correct_option_index is null),
   constraint game_cards_predict_resolved_answer_ck
     check (mode <> 'PREDICT' or lifecycle_status <> 'resolved' or correct_option_index is not null),
+  constraint game_cards_predict_lifecycle_ck
+    check (
+      lifecycle_status not in ('open','resolved','void')
+      or mode = 'PREDICT'
+    ),
+  constraint game_cards_predict_not_plain_published_ck
+    check (mode <> 'PREDICT' or lifecycle_status <> 'published'),
+  constraint game_cards_resolution_payload_ck
+    check (lifecycle_status not in ('resolved','void') or resolution is not null),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
