@@ -1,8 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { buildDailyQueue } from "../src/pipeline/daily.js";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
+import { hasBearerSecret } from "../src/auth/bearer.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!hasBearerSecret(req, process.env.GENERATION_API_TOKEN)) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "method_not_allowed" });
