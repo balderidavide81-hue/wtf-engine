@@ -1,7 +1,7 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 import type { ArticleCandidate } from "../domain/types.js";
 import type { ContentStore } from "./content-store.js";
-import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord } from "./types.js";
+import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
 
 const SCOUT_PROMPT_VERSION = "scout/v0.1";
 const EDITOR_PROMPT_VERSION = "editor/v0.1";
@@ -324,6 +324,54 @@ export class NeonContentStore implements ContentStore {
     } finally {
       client.release();
     }
+  }
+
+  async resolvePrediction(cardId: string, input: PredictionResolutionInput): Promise<void> {
+    if (!Number.isInteger(input.outcomeOptionIndex) || input.outcomeOptionIndex < 0) {
+      throw new Error("outcomeOptionIndex must be a non-negative integer");
+    }
+    if (!input.evidenceUrl || !input.evidenceNote.trim()) {
+      throw new Error("Prediction resolution requires evidenceUrl and evidenceNote");
+    }
+    const result = await this.pool.query(
+      `update game_cards
+          set lifecycle_status='resolved',
+              correct_option_index=$2,
+              resolution=jsonb_build_object(
+                'outcomeOptionIndex',$2,
+                'evidenceUrl',$3,
+                'evidenceNote',$4,
+                'resolvedAt',now()
+              ),
+              updated_at=now()
+        where id=$1
+          and mode='PREDICT'
+          and lifecycle_status='open'
+          and $2 < jsonb_array_length(options)
+        returning id`,
+      [cardId, input.outcomeOptionIndex, input.evidenceUrl, input.evidenceNote.trim()]
+    );
+    if (result.rowCount === 0) {
+      throw new Error(`Prediction ${cardId} is not open or the outcome index is invalid`);
+    }
+  }
+
+  async voidPrediction(cardId: string, input: PredictionVoidInput): Promise<void> {
+    if (!input.reason.trim()) throw new Error("Void reason is required");
+    const result = await this.pool.query(
+      `update game_cards
+          set lifecycle_status='void',
+              resolution=jsonb_build_object(
+                'reason',$2,
+                'evidenceUrl',$3,
+                'voidedAt',now()
+              ),
+              updated_at=now()
+        where id=$1 and mode='PREDICT' and lifecycle_status='open'
+        returning id`,
+      [cardId, input.reason.trim(), input.evidenceUrl ?? null]
+    );
+    if (result.rowCount === 0) throw new Error(`Prediction ${cardId} is not open`);
   }
 
   private async upsertArticle(client: PoolClient, candidate: ArticleCandidate): Promise<string> {
