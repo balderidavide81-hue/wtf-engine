@@ -21,8 +21,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: "persistence_not_configured" });
   }
 
+  const store = new NeonContentStore();
+  const leaseKey = "daily-generation";
+  let leaseOwner: string | null = null;
+
   try {
-    const store = new NeonContentStore();
+    leaseOwner = await store.tryAcquireGenerationLease(leaseKey, 600);
+    if (!leaseOwner) {
+      return res.status(409).json({ error: "generation_already_running" });
+    }
     const report = await buildDailyQueue(limit, store);
     return res.status(200).json(report);
   } catch (error) {
@@ -31,5 +38,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: "daily_queue_failed",
       message: error instanceof Error ? error.message : String(error)
     });
+  } finally {
+    if (leaseOwner) {
+      try {
+        await store.releaseGenerationLease(leaseKey, leaseOwner);
+      } catch (releaseError) {
+        console.error("generation_lease_release_failed", releaseError);
+      }
+    }
   }
 }
