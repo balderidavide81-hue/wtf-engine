@@ -8,16 +8,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!hasBearerSecret(req, process.env.GENERATION_API_TOKEN)) {
     return res.status(401).json({ error: "unauthorized" });
   }
-  if (req.method !== "GET") {
-    res.setHeader("Allow", "GET");
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "method_not_allowed" });
   }
 
   const requested = Number(req.query.limit ?? 30);
   const limit = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 30)) : 30;
 
+  if (!process.env.DATABASE_URL) {
+    return res.status(503).json({ error: "persistence_not_configured" });
+  }
+
   try {
-    const store = process.env.DATABASE_URL ? new NeonContentStore() : undefined;
+    const store = new NeonContentStore();
     const report = await buildDailyQueue(limit, store);
     return res.status(200).json(report);
   } catch (error) {
