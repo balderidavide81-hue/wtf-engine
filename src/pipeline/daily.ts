@@ -103,7 +103,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
   const { candidates: _ignored, ...collectionSummary } = collection;
 
   let persistence: DailyQueueReport["persistence"];
-  if (store) {
+  if (store && candidates.length > 0) {
     const saved = await store.saveCompletedRun({
       collection: collectionSummary,
       candidates,
