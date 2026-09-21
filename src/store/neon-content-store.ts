@@ -102,27 +102,50 @@ export class NeonContentStore implements ContentStore {
     }
   }
 
-  async saveDraftEdition(editionDate: string, cardIds: string[]): Promise<DailyEditionRecord> {
+  async appendDraftEdition(editionDate: string, cardIds: string[]): Promise<DailyEditionRecord> {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
       const result = await client.query(
         `insert into daily_editions (edition_date, status)
          values ($1, 'draft')
-         on conflict (edition_date) do update set status='draft', published_at=null
+         on conflict (edition_date) do update set edition_date=excluded.edition_date
          returning id, edition_date::text, status`,
         [editionDate]
       );
       const editionId = String(result.rows[0].id);
-      await client.query("delete from daily_edition_cards where edition_id=$1", [editionId]);
-      for (let position = 0; position < cardIds.length; position++) {
-        await client.query(
-          "insert into daily_edition_cards (edition_id, card_id, position) values ($1,$2,$3)",
-          [editionId, cardIds[position], position]
-        );
+      if (result.rows[0].status !== "draft") {
+        throw new Error(`Edition ${editionDate} is ${result.rows[0].status} and cannot be mutated`);
       }
+
+      const positionResult = await client.query(
+        "select coalesce(max(position), -1) + 1 as next_position from daily_edition_cards where edition_id=$1",
+        [editionId]
+      );
+      let position = Number(positionResult.rows[0].next_position);
+
+      for (const cardId of cardIds) {
+        const inserted = await client.query(
+          `insert into daily_edition_cards (edition_id, card_id, position)
+           values ($1,$2,$3)
+           on conflict (edition_id, card_id) do nothing
+           returning card_id`,
+          [editionId, cardId, position]
+        );
+        if ((inserted.rowCount ?? 0) > 0) position += 1;
+      }
+
+      const cards = await client.query(
+        "select card_id from daily_edition_cards where edition_id=$1 order by position",
+        [editionId]
+      );
       await client.query("commit");
-      return { id: editionId, editionDate: String(result.rows[0].edition_date), status: "draft", cardIds };
+      return {
+        id: editionId,
+        editionDate: String(result.rows[0].edition_date),
+        status: "draft",
+        cardIds: cards.rows.map(row => String(row.card_id))
+      };
     } catch (error) {
       await client.query("rollback");
       throw error;
