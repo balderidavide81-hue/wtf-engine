@@ -21,3 +21,5 @@ jobs:
         run: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
       - name: TypeScript typecheck
         run: npm run typecheck
+
+# one-shot validation trigger
