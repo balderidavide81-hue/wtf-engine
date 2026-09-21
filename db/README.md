@@ -10,6 +10,7 @@ It creates:
 
 - sources
 - articles
+- generation_leases
 - pipeline_runs
 - scout_results
 - game_cards
