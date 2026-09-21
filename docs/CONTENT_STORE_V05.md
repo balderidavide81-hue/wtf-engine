@@ -25,3 +25,11 @@ Ingestion must upsert an already-seen article rather than paying Scout/Editor ag
 ## Deployment discipline
 
 Do not apply this migration or deploy intermediate v0.5 work. Build the adapter and pipeline integration on the feature branch, then review the complete coherent block before one migration/deployment.
+
+## Pipeline integration
+
+When `DATABASE_URL` is configured, `/api/daily` now uses the Neon store. Before Scout, the pipeline asks for external IDs that already have a persisted Scout result and removes them from the paid AI batch. New Scout/Editor output is then persisted and attached to the day's draft edition.
+
+Without `DATABASE_URL`, the endpoint preserves the existing non-persistent behavior. This allows source work to remain deploy-safe until the migration and environment are deliberately enabled.
+
+The API report exposes `previouslyProcessed` and, when persistence is active, run/edition/card IDs for auditability.
