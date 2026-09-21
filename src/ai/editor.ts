@@ -18,7 +18,7 @@ export interface EditorBatch {
   usage: AiUsageDiagnostics;
 }
 
-export const EDITOR_PROMPT_VERSION = "editor/inline-v0.2";
+export const EDITOR_PROMPT_VERSION = "editor/inline-v0.3";
 
 const instructions = `
 You are Luna Editor for WTF Engine.
