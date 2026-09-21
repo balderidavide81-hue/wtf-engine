@@ -142,12 +142,7 @@ function usageDiagnostics(response: OpenAI.Responses.Response, model: string): A
 }
 
 export class OpenAIScout implements Scout {
-  private readonly client: OpenAI;
-
-  constructor(apiKey = process.env.OPENAI_API_KEY) {
-    if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
-    this.client = new OpenAI({ apiKey });
-  }
+  constructor(private readonly apiKey = process.env.OPENAI_API_KEY) {}
 
   async classify(candidates: ArticleCandidate[]): Promise<ScoutResult[]> {
     return (await this.classifyDetailed(candidates)).results;
@@ -165,7 +160,9 @@ export class OpenAIScout implements Scout {
       };
     }
 
-    const response = await this.client.responses.create({
+    if (!this.apiKey) throw new Error("OPENAI_API_KEY is not configured");
+    const client = new OpenAI({ apiKey: this.apiKey });
+    const response = await client.responses.create({
       model,
       instructions,
       input: JSON.stringify(candidates.map(compactCandidate)),
@@ -175,6 +172,17 @@ export class OpenAIScout implements Scout {
     });
 
     const parsed = JSON.parse(response.output_text) as { results: ScoutResult[] };
+    const submittedIds = new Set(candidates.map(candidate => candidate.id));
+    const seenIds = new Set<string>();
+    for (const result of parsed.results) {
+      if (!submittedIds.has(result.articleId)) {
+        throw new Error(`Scout returned article ID that was not submitted: ${result.articleId}`);
+      }
+      if (seenIds.has(result.articleId)) {
+        throw new Error(`Scout returned duplicate result for article ${result.articleId}`);
+      }
+      seenIds.add(result.articleId);
+    }
     return { results: parsed.results, usage: usageDiagnostics(response, model) };
   }
 }
