@@ -108,4 +108,4 @@ A real TypeScript typecheck/build has not been executed by this source-only conn
 
 Independent automated source verification is also not implemented yet. Human editorial source review remains the publication gate; the repository documentation now states this explicitly.
 
-Additional deep-audit hardening also added prompt-injection instructions for untrusted feed/model text, bounded RSS response/item/text volume, hashed source keys, evidence-URL validation, and version-bumped prompt provenance (`scout/v0.2`, `editor/inline-v0.2`).
+Additional deep-audit hardening also added prompt-injection instructions for untrusted feed/model text, bounded RSS response/item/text volume, hashed source keys, evidence-URL validation, and version-bumped prompt provenance (`scout/v0.2`, `editor/inline-v0.3`).
