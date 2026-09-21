@@ -43,6 +43,8 @@ export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
   scouted: number;
   editorEligible: number;
+  editorSubmitted: number;
+  editorOmittedArticleIds: string[];
   edited: number;
   ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
   cards: GameCardDraft[];
@@ -74,13 +76,29 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
   const queue = diversifyQueue(rankedQueue);
   const editor = new OpenAIEditor();
   const editorEligible = queue.filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED").length;
+  const editorSubmittedItems = queue
+    .filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED")
+    .slice(0, 12);
   const edited = await editor.draft(queue);
+  const submittedIds = new Set(editorSubmittedItems.map(item => item.candidate.id));
+  const returnedIds = new Set(edited.cards.map(card => card.articleId));
+  const editorOmittedArticleIds = editorSubmittedItems
+    .map(item => item.candidate.id)
+    .filter(id => !returnedIds.has(id));
+  const unexpectedEditorIds = edited.cards
+    .map(card => card.articleId)
+    .filter(id => !submittedIds.has(id));
+  if (unexpectedEditorIds.length > 0) {
+    throw new Error(`Editor returned article IDs that were not submitted: ${unexpectedEditorIds.join(", ")}`);
+  }
   const totalEstimatedCostUsd = batch.usage.estimatedCostUsd + edited.usage.estimatedCostUsd;
   const { candidates: _ignored, ...collectionSummary } = collection;
   return {
     collection: collectionSummary,
     scouted: candidates.length,
     editorEligible,
+    editorSubmitted: editorSubmittedItems.length,
+    editorOmittedArticleIds,
     edited: edited.cards.length,
     ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd },
     cards: edited.cards,
