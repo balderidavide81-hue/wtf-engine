@@ -4,6 +4,7 @@ import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
 import { diversifyQueue } from "./diversity.js";
 import type { ContentStore } from "../store/content-store.js";
+import { editionDateFor } from "../time/edition-date.js";
 
 const DEFAULT_SCOUT_LIMIT = 30;
 
@@ -110,7 +111,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
       cards: edited.cards,
       ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd }
     });
-    const editionDate = new Date().toISOString().slice(0, 10);
+    const editionDate = editionDateFor();
     const edition = await store.appendDraftEdition(editionDate, saved.cardIds);
     persistence = { runId: saved.runId, editionId: edition.id, editionDate, newCardIds: saved.cardIds, editionCardIds: edition.cardIds };
   }
