@@ -91,11 +91,7 @@ function compactEditorItem(item: { candidate: ArticleCandidate; scout: ScoutResu
 }
 
 export class OpenAIEditor {
-  private readonly client: OpenAI;
-  constructor(apiKey = process.env.OPENAI_API_KEY) {
-    if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
-    this.client = new OpenAI({ apiKey });
-  }
+  constructor(private readonly apiKey = process.env.OPENAI_API_KEY) {}
 
   async draft(items: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>, limit = DEFAULT_EDITOR_LIMIT): Promise<EditorBatch> {
     const eligible = items
@@ -106,7 +102,9 @@ export class OpenAIEditor {
     }
 
     const model = process.env.OPENAI_EDITOR_MODEL ?? "gpt-5.6-luna";
-    const response = await this.client.responses.create({
+    if (!this.apiKey) throw new Error("OPENAI_API_KEY is not configured");
+    const client = new OpenAI({ apiKey: this.apiKey });
+    const response = await client.responses.create({
       model,
       instructions,
       input: JSON.stringify(eligible.map(compactEditorItem)),
