@@ -1,5 +1,5 @@
 -- WTF Engine v0.5 content store foundation.
--- Source-only migration: do not apply automatically.
+-- Applied to Neon project autumn-violet-57425012 / main on 2026-09-21 after temporary-branch validation.
 
 create extension if not exists pgcrypto;
 
