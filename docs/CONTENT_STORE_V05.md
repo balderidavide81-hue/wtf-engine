@@ -55,3 +55,13 @@ Persistence diagnostics distinguish `newCardIds` from the complete `editionCardI
 An edition can move only `draft → reviewed → published`. Every non-rejected card must be individually reviewed before the edition enters review. Publishing promotes reviewed WTF/STORY cards to `published` and PREDICT cards to `open`. Published editions/cards cannot be silently edited by later generation or review calls.
 
 This endpoint is an internal workflow surface and must be protected by authentication before any public production exposure.
+
+## Security boundary and gameplay API
+
+`/api/editorial` now requires `Authorization: Bearer <EDITORIAL_API_TOKEN>`. Missing server configuration fails closed: no token means no editorial access.
+
+`GET /api/gameplay-daily?date=YYYY-MM-DD` is intentionally read-only and public. It returns only a published edition and never exposes drafts, rejected cards, Scout diagnostics, AI costs, internal IDs for runs, or editorial actions.
+
+For an open PREDICT card, the public payload suppresses `reveal` until the card is resolved. This prevents the gameplay API from leaking the future answer/resolution content while betting is open. Published WTF/STORY cards and resolved predictions may expose their reveal.
+
+The gameplay response is cacheable at the edge for 60 seconds with stale-while-revalidate, keeping normal player reads independent from AI generation.
