@@ -1,4 +1,4 @@
-name: v0.5 typecheck
+name: v0.5 validation
 
 on:
   push:
@@ -9,17 +9,110 @@ permissions:
   contents: read
 
 jobs:
-  typecheck:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wtf_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wtf_test
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+
       - name: TypeScript typecheck
         run: npm run typecheck
 
-# one-shot validation trigger
+      - name: Apply v0.5 migration
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/001_content_store_v05.sql
+
+      - name: Reapply migration idempotently
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/001_content_store_v05.sql
+
+      - name: Validate schema invariants
+        run: |
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            table_count integer;
+            source_id uuid;
+            article_id uuid;
+          begin
+            select count(*) into table_count
+              from information_schema.tables
+             where table_schema='public'
+               and table_name in (
+                 'sources','articles','generation_leases','pipeline_runs',
+                 'scout_results','game_cards','daily_editions','daily_edition_cards'
+               );
+            if table_count <> 8 then
+              raise exception 'expected 8 v0.5 tables, found %', table_count;
+            end if;
+
+            insert into sources(source_key,name)
+            values ('ci-source','CI Source')
+            returning id into source_id;
+
+            insert into articles(
+              external_id,source_id,source_name,source_url,canonical_url,title
+            ) values (
+              'ci-article',source_id,'CI Source','https://example.com/story',
+              'https://example.com/story','CI article title'
+            ) returning id into article_id;
+
+            insert into game_cards(
+              article_id,prompt_version,model,mode,hook,question,options,
+              correct_option_index,reveal,resolution_rule,lifecycle_status
+            ) values (
+              article_id,'editor/ci','ci','PREDICT','hook','question',
+              '["Yes","No"]'::jsonb,null,'pending','Resolve from evidence','draft'
+            );
+
+            begin
+              insert into game_cards(
+                article_id,prompt_version,model,mode,hook,question,options,
+                correct_option_index,reveal,resolution_rule,lifecycle_status
+              ) values (
+                article_id,'editor/invalid-predict','ci','PREDICT','hook','question',
+                '["Yes","No"]'::jsonb,null,'pending','Resolve from evidence','published'
+              );
+              raise exception 'invalid plain-published PREDICT was accepted';
+            exception when check_violation then
+              null;
+            end;
+
+            begin
+              insert into game_cards(
+                article_id,prompt_version,model,mode,hook,question,options,
+                correct_option_index,reveal,resolution_rule,lifecycle_status
+              ) values (
+                article_id,'editor/invalid-wtf','ci','WTF','hook','question',
+                '["A","B"]'::jsonb,null,'reveal',null,'draft'
+              );
+              raise exception 'WTF without answer was accepted';
+            exception when check_violation then
+              null;
+            end;
+
+            insert into generation_leases(lease_key,owner_token,acquired_at,expires_at)
+            values ('ci-lease',gen_random_uuid(),now(),now()+make_interval(secs => 600));
+          end
+          $$;
+          SQL
