@@ -45,6 +45,7 @@ export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
   previouslyProcessed: number;
   scouted: number;
+  scoutOmittedArticleIds: string[];
   editorEligible: number;
   editorSubmitted: number;
   editorOmittedArticleIds: string[];
@@ -67,6 +68,13 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
   const scout = new OpenAIScout();
   const batch = await scout.classifyDetailed(candidates);
   const results = batch.results;
+  const candidateIds = new Set(candidates.map(candidate => candidate.id));
+  const unexpectedScoutIds = results.map(result => result.articleId).filter(id => !candidateIds.has(id));
+  if (unexpectedScoutIds.length > 0) {
+    throw new Error(`Scout returned article IDs that were not submitted: ${unexpectedScoutIds.join(", ")}`);
+  }
+  const returnedScoutIds = new Set(results.map(result => result.articleId));
+  const scoutOmittedArticleIds = candidates.map(candidate => candidate.id).filter(id => !returnedScoutIds.has(id));
   const byId = new Map(candidates.map(candidate => [candidate.id, candidate]));
 
   const rankedQueue = results
@@ -120,6 +128,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
     collection: collectionSummary,
     previouslyProcessed: processedIds.size,
     scouted: candidates.length,
+    scoutOmittedArticleIds,
     editorEligible,
     editorSubmitted: editorSubmittedItems.length,
     editorOmittedArticleIds,
