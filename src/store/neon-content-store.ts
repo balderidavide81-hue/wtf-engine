@@ -1,5 +1,5 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { ArticleCandidate } from "../domain/types.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
@@ -24,6 +24,30 @@ export class NeonContentStore implements ContentStore {
 
   constructor(connectionString = requireDatabaseUrl()) {
     this.pool = new Pool({ connectionString });
+  }
+
+  async tryAcquireGenerationLease(leaseKey: string, ttlSeconds: number): Promise<string | null> {
+    const ttl = Math.max(60, Math.min(Math.trunc(ttlSeconds), 3_600));
+    const ownerToken = randomUUID();
+    const result = await this.pool.query(
+      `insert into generation_leases (lease_key, owner_token, acquired_at, expires_at)
+       values ($1,$2,now(),now() + make_interval(secs => $3))
+       on conflict (lease_key) do update set
+         owner_token=excluded.owner_token,
+         acquired_at=excluded.acquired_at,
+         expires_at=excluded.expires_at
+       where generation_leases.expires_at <= now()
+       returning owner_token`,
+      [leaseKey, ownerToken, ttl]
+    );
+    return (result.rowCount ?? 0) > 0 ? String(result.rows[0].owner_token) : null;
+  }
+
+  async releaseGenerationLease(leaseKey: string, ownerToken: string): Promise<void> {
+    await this.pool.query(
+      "delete from generation_leases where lease_key=$1 and owner_token=$2",
+      [leaseKey, ownerToken]
+    );
   }
 
   async findProcessedCandidateIds(candidates: ArticleCandidate[]): Promise<Set<string>> {
