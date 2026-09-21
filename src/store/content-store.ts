@@ -21,7 +21,11 @@ export interface ContentStore {
   getEdition(editionDate: string): Promise<DailyEditionRecord | null>;
   getEditorialEdition(editionDate: string): Promise<EditorialEditionRecord | null>;
   getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null>;
-  setCardLifecycle(cardId: string, status: Extract<CardLifecycleStatus, "reviewed" | "rejected">): Promise<void>;
+  setCardLifecycle(
+    editionDate: string,
+    cardId: string,
+    status: Extract<CardLifecycleStatus, "reviewed" | "rejected">
+  ): Promise<void>;
   setEditionStatus(editionDate: string, status: Extract<EditionStatus, "reviewed" | "published">): Promise<DailyEditionRecord>;
   resolvePrediction(cardId: string, input: PredictionResolutionInput): Promise<void>;
   voidPrediction(cardId: string, input: PredictionVoidInput): Promise<void>;
