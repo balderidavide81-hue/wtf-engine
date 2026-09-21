@@ -23,3 +23,23 @@ export interface DailyEditionRecord {
   status: EditionStatus;
   cardIds: string[];
 }
+
+export interface EditorialCardRecord {
+  id: string;
+  articleId: string;
+  mode: "WTF" | "PREDICT" | "STORY";
+  hook: string;
+  question: string;
+  options: string[];
+  correctOptionIndex: number | null;
+  reveal: string;
+  resolutionRule: string | null;
+  lifecycleStatus: CardLifecycleStatus;
+  sourceName: string;
+  sourceUrl: string;
+  title: string;
+}
+
+export interface EditorialEditionRecord extends DailyEditionRecord {
+  cards: EditorialCardRecord[];
+}
