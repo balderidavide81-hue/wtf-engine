@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
+import { editionDateFor } from "../src/time/edition-date.js";
 import { isEditorialAuthorized } from "../src/auth/editorial.js";
 
 function store(): NeonContentStore {
@@ -10,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!isEditorialAuthorized(req)) {
     return res.status(401).json({ error: "unauthorized" });
   }
-  const date = typeof req.query.date === "string" ? req.query.date : new Date().toISOString().slice(0, 10);
+  const date = typeof req.query.date === "string" ? req.query.date : editionDateFor();
   try {
     if (req.method === "GET") {
       const edition = await store().getEditorialEdition(date);
