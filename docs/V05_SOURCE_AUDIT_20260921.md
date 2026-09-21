@@ -74,3 +74,38 @@ For the current phase, keep generation single-flight. A database claim/lease can
 - No automatic PREDICT resolver yet.
 
 Use `docs/V05_LIVE_ROLLOUT_CHECKLIST.md` for the first controlled live activation.
+
+
+## Higher-depth repository audit pass
+
+A second, repository-wide audit was performed before any live migration/deploy because the earlier implementation had been produced with insufficient reasoning depth.
+
+Additional defects found and corrected:
+
+- public legacy `/api/scout` could trigger paid OpenAI work without authentication;
+- public `/api/collect` exposed internal feed diagnostics;
+- paid `/api/daily` used GET semantics despite side effects;
+- `/api/daily` could spend AI with no database configured and discard persistence;
+- RSS IDs depended on feed array position;
+- feed/article URL validation was too permissive;
+- RSS requests lacked timeout/body/item bounds;
+- Scout duplicate/unknown output IDs were not enforced at the AI boundary;
+- Editor semantic validation did not reject duplicate/empty/invalid card shapes strongly enough;
+- card review actions were not scoped to the requested edition;
+- reviewed editions did not originally freeze every card-review path;
+- PREDICT draft reveal text could later be mistaken for the real outcome;
+- voided PREDICT cards would disappear from the public edition;
+- public PREDICT results lacked adjudication evidence metadata;
+- article external-ID/canonical-URL collisions could be resolved ambiguously;
+- post-commit edition reads could fall into rollback error handling;
+- database checks did not fully encode application-level card/PREDICT invariants;
+- repository had no `.gitignore` protection for local secrets/build artifacts;
+- current README/architecture/API/database docs materially lagged the implementation.
+
+These were fixed source-side. Production remains untouched.
+
+### Remaining pre-live validation
+
+A real TypeScript typecheck/build has not been executed by this source-only connector workflow. The live checklist now treats `npm run typecheck` as a hard precondition before migration/deployment.
+
+Independent automated source verification is also not implemented yet. Human editorial source review remains the publication gate; the repository documentation now states this explicitly.
