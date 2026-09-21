@@ -1,23 +1,34 @@
-# Source policy v0.1
+# Source policy v0.2
 
-The engine does not assume that a publicly readable page is automatically reusable as a feed.
+The collector now has a deliberately small automatic default registry.
 
-Before activating a source:
+## Active default source
+
+- UPI Odd News — official odd-news publisher; machine-readable RSS endpoint used for discovery.
+
+UPI describes Odd News as weird/viral news from around the world. Its news content is copyrighted/licensed, so WTF Engine uses feed metadata for discovery and keeps the canonical source URL; it must not republish article bodies or media without the appropriate rights.
+
+## Expansion
+
+Additional feeds can be added through `WTF_RSS_SOURCES` without a code deploy:
+
+`Name|URL|language|country,Name 2|URL|language|country`
+
+Before activating another source:
 1. verify the feed/API endpoint;
-2. review its access and reuse/licensing terms;
-3. ingest only the metadata/content needed for candidate selection;
-4. retain the canonical source URL for attribution and verification;
-5. do not republish third-party article bodies or images without appropriate rights.
+2. review access and reuse/licensing terms;
+3. ingest only what is needed for candidate selection;
+4. retain canonical URLs for attribution and verification;
+5. do not republish third-party bodies/images without rights.
 
-## Initial source families
+## Priority families
 
-Priority families:
-- odd/local curiosities;
-- records;
-- contests and festivals;
-- animals;
-- entertainment and public events;
-- food and unusual competitions;
-- technology curiosities.
+- odd/local curiosities
+- records
+- contests and festivals
+- animals
+- entertainment and public events
+- food and unusual competitions
+- technology curiosities
 
-UPI Odd News and Guinness World Records are strong discovery/reference candidates, but activation is intentionally separate from this code scaffold so that feed/API availability and reuse terms can be checked first.
+Guinness World Records is a strong discovery/reference source, but its public site content is protected by copyright and no official RSS endpoint was verified in this pass, so it is not scraped automatically in v0.2.
