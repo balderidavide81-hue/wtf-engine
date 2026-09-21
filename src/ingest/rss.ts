@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import type { ArticleCandidate } from "../domain/types.js";
 import type { NewsSource } from "./index.js";
-import { canonicalizeUrl } from "../domain/url.js";
+import { canonicalizeHttpUrl } from "../domain/url.js";
 
 export interface RssSourceConfig {
   name: string;
@@ -36,7 +36,8 @@ export class RssSource implements NewsSource {
 
   async fetchCandidates(): Promise<ArticleCandidate[]> {
     const response = await fetch(this.config.url, {
-      headers: { "user-agent": "wtf-engine/0.2 (+editorial prototype)" }
+      headers: { "user-agent": "wtf-engine/0.5 (+editorial prototype)" },
+      signal: AbortSignal.timeout(10_000)
     });
     if (!response.ok) throw new Error(`${this.name}: HTTP ${response.status}`);
 
@@ -48,7 +49,8 @@ export class RssSource implements NewsSource {
       const link = text(item.link) ?? text(item.guid);
       if (!title || !link) return [];
 
-      const canonicalLink = canonicalizeUrl(link);
+      const canonicalLink = canonicalizeHttpUrl(link);
+      if (!canonicalLink) return [];
       return [{
         id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${canonicalLink}`,
         sourceName: this.name,
