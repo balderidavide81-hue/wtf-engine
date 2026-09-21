@@ -20,7 +20,7 @@ PREDICT cards can later move through `open → resolved|void`; `resolution_rule`
 
 ## Idempotency
 
-Ingestion must upsert an already-seen article rather than paying Scout/Editor again solely because the feed returned it again. The application persistence adapter will enforce this before AI work in the next implementation step.
+Ingestion must upsert an already-seen article rather than paying Scout/Editor again solely because the feed returned it again. The persistence adapter enforces this before AI work by matching both external identity and canonical URL.
 
 ## Deployment discipline
 
@@ -36,7 +36,7 @@ The API report exposes `previouslyProcessed` and, when persistence is active, ru
 
 ## Repeated-run safety
 
-A second generation run on the same UTC day is incremental. Existing edition cards are preserved and only newly persisted card IDs are appended. Repeating the same card ID is a no-op.
+A second generation run on the same configured edition day is incremental. Existing edition cards are preserved and only newly persisted card IDs are appended. Repeating the same card ID is a no-op.
 
 Once an edition is `reviewed` or `published`, generation is not allowed to mutate its membership. This prevents a later scheduler/manual run from silently changing an edition that has already entered editorial workflow.
 
@@ -62,7 +62,7 @@ This endpoint is an internal workflow surface and must be protected by authentic
 
 `GET /api/gameplay-daily?date=YYYY-MM-DD` is intentionally read-only and public. It returns only a published edition and never exposes drafts, rejected cards, Scout diagnostics, AI costs, internal IDs for runs, or editorial actions.
 
-For an open PREDICT card, the public payload suppresses `reveal` until the card is resolved. This prevents the gameplay API from leaking the future answer/resolution content while betting is open. Published WTF/STORY cards and resolved predictions may expose their reveal.
+The public edition feed suppresses `reveal` for active cards. Only a resolved prediction can expose its reveal through this feed. WTF/STORY answer reveal should be delivered later through the gameplay answer flow rather than embedded in the initial edition payload.
 
 The gameplay response is cacheable at the edge for 60 seconds with stale-while-revalidate, keeping normal player reads independent from AI generation.
 
@@ -90,3 +90,12 @@ Daily edition dates now use the explicit IANA timezone `EDITION_TIME_ZONE` (defa
 Article persistence reconciles identity using either stable external ID or canonical URL before insert, avoiding the previous failure mode where a feed changed its external ID while keeping the same canonical story URL.
 
 Residual concurrency note: database uniqueness prevents duplicate persisted Scout/Editor rows for the same prompt version, but two truly simultaneous generation requests can still both pass the pre-AI processed check and spend AI before either transaction commits. Keep `/api/daily` scheduler/manual invocation single-flight until a database-backed claim/lease is added. This is documented rather than hidden and is not a gameplay-read risk.
+
+
+## Editorial freeze and retry semantics
+
+Once an edition leaves `draft`, individual review/reject mutations are frozen. This prevents a reviewed edition from changing underneath a later publish call.
+
+Edition transitions are retry-safe for the same target state: repeating `reviewed → reviewed` or `published → published` returns the current edition instead of creating a second transition.
+
+Persisted Scout and Editor outputs are immutable for a given `(article_id, prompt_version)`. A concurrent/retried write returns the existing row instead of overwriting an already reviewed or published card.
