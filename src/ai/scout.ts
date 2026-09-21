@@ -16,6 +16,8 @@ export interface AiUsageDiagnostics {
   };
 }
 
+export const SCOUT_BATCH_LIMIT = 30;
+
 export interface ScoutBatch {
   results: ScoutResult[];
   usage: AiUsageDiagnostics;
@@ -149,6 +151,9 @@ export class OpenAIScout implements Scout {
   }
 
   async classifyDetailed(candidates: ArticleCandidate[]): Promise<ScoutBatch> {
+    if (candidates.length > SCOUT_BATCH_LIMIT) {
+      throw new Error(`Scout batch exceeds limit of ${SCOUT_BATCH_LIMIT}`);
+    }
     const model = process.env.OPENAI_SCOUT_MODEL ?? "gpt-5.6-luna";
     if (candidates.length === 0) {
       return {
