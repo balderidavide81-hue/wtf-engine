@@ -57,11 +57,9 @@ Expected unique AI indexes:
 
 No package lock exists in the repository; dependency resolution is currently package.json-based.
 
-## Known residual risk
+## Generation concurrency
 
-Two truly simultaneous authenticated `/api/daily` calls can both pass the pre-AI processed check before either persists, causing duplicate AI spend. Database constraints prevent duplicate stored Scout/Editor records, but they cannot refund duplicated upstream model calls.
-
-For the current phase, keep generation single-flight. A database claim/lease can be added later if automated scheduling can overlap.
+The earlier simultaneous-run cost risk was closed during the deeper audit. `/api/daily` now acquires an expiring database-backed lease before paid work and returns `409 generation_already_running` to overlapping requests.
 
 ## Deliberately not completed in this block
 
@@ -109,3 +107,5 @@ These were fixed source-side. Production remains untouched.
 A real TypeScript typecheck/build has not been executed by this source-only connector workflow. The live checklist now treats `npm run typecheck` as a hard precondition before migration/deployment.
 
 Independent automated source verification is also not implemented yet. Human editorial source review remains the publication gate; the repository documentation now states this explicitly.
+
+Additional deep-audit hardening also added prompt-injection instructions for untrusted feed/model text, bounded RSS response/item/text volume, hashed source keys, evidence-URL validation, and version-bumped prompt provenance (`scout/v0.2`, `editor/inline-v0.2`).
