@@ -82,3 +82,11 @@ The paid generation endpoint `/api/daily` is no longer public: it requires `Auth
 Scout and Editor persistence now has database uniqueness per `(article_id, prompt_version)`, with conflict-safe writes. The inline Editor prompt is recorded explicitly as `editor/inline-v0.1` rather than implying a nonexistent external prompt file.
 
 The public surface remains only the read-only published gameplay endpoint. Migration/deploy remain deliberately unapplied during source audit.
+
+## Final pre-migration audit notes
+
+Daily edition dates now use the explicit IANA timezone `EDITION_TIME_ZONE` (default `Europe/Rome`) across generation, editorial defaults and gameplay defaults instead of UTC date slicing.
+
+Article persistence reconciles identity using either stable external ID or canonical URL before insert, avoiding the previous failure mode where a feed changed its external ID while keeping the same canonical story URL.
+
+Residual concurrency note: database uniqueness prevents duplicate persisted Scout/Editor rows for the same prompt version, but two truly simultaneous generation requests can still both pass the pre-AI processed check and spend AI before either transaction commits. Keep `/api/daily` scheduler/manual invocation single-flight until a database-backed claim/lease is added. This is documented rather than hidden and is not a gameplay-read risk.
