@@ -263,12 +263,24 @@ export class NeonContentStore implements ContentStore {
     };
   }
 
-  async setCardLifecycle(cardId: string, status: Extract<CardLifecycleStatus, "reviewed" | "rejected">): Promise<void> {
+  async setCardLifecycle(
+    editionDate: string,
+    cardId: string,
+    status: Extract<CardLifecycleStatus, "reviewed" | "rejected">
+  ): Promise<void> {
     const result = await this.pool.query(
       `update game_cards gc
-          set lifecycle_status=$2, updated_at=now()
-        where gc.id=$1
+          set lifecycle_status=$3, updated_at=now()
+        where gc.id=$2
           and gc.lifecycle_status in ('draft','reviewed','rejected')
+          and exists (
+            select 1
+              from daily_edition_cards dec
+              join daily_editions de on de.id=dec.edition_id
+             where dec.card_id=gc.id
+               and de.edition_date=$1
+               and de.status='draft'
+          )
           and not exists (
             select 1
               from daily_edition_cards dec
@@ -276,7 +288,7 @@ export class NeonContentStore implements ContentStore {
              where dec.card_id=gc.id and de.status <> 'draft'
           )
         returning id`,
-      [cardId, status]
+      [editionDate, cardId, status]
     );
     if (result.rowCount === 0) throw new Error(`Card ${cardId} cannot be moved to ${status}`);
   }
