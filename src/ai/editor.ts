@@ -137,8 +137,9 @@ function makeUsage(response: OpenAI.Responses.Response, model: string): AiUsageD
   const cachedInputTokens = response.usage?.input_tokens_details?.cached_tokens ?? 0;
   const outputTokens = response.usage?.output_tokens ?? 0;
   const totalTokens = response.usage?.total_tokens ?? inputTokens + outputTokens;
+  const uncachedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
   const estimatedCostUsd =
-    ((inputTokens - cachedInputTokens) * pricing.inputPerMillionUsd +
+    (uncachedInputTokens * pricing.inputPerMillionUsd +
       cachedInputTokens * pricing.cachedInputPerMillionUsd +
       outputTokens * pricing.outputPerMillionUsd) / 1_000_000;
   return { model, inputTokens, cachedInputTokens, outputTokens, totalTokens, estimatedCostUsd, pricing };
