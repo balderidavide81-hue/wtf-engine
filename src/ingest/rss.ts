@@ -18,6 +18,13 @@ const MAX_TITLE_CHARS = 600;
 const MAX_SUMMARY_CHARS = 4_000;
 
 function text(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const candidate = text(item);
+      if (candidate) return candidate;
+    }
+    return undefined;
+  }
   if (typeof value === "string") return value.trim() || undefined;
   if (typeof value === "number") return String(value);
   if (value && typeof value === "object") {
@@ -52,6 +59,10 @@ export class RssSource implements NewsSource {
       signal: AbortSignal.timeout(10_000)
     });
     if (!response.ok) throw new Error(`${this.name}: HTTP ${response.status}`);
+    const declaredLength = Number(response.headers.get("content-length") ?? "0");
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_RSS_RESPONSE_CHARS * 2) {
+      throw new Error(`${this.name}: RSS response declares excessive size`);
+    }
 
     const xml = await response.text();
     if (xml.length > MAX_RSS_RESPONSE_CHARS) {
