@@ -23,16 +23,27 @@ export class NeonContentStore implements ContentStore {
     this.pool = new Pool({ connectionString });
   }
 
-  async findProcessedExternalIds(externalIds: string[]): Promise<Set<string>> {
-    if (externalIds.length === 0) return new Set();
+  async findProcessedCandidateIds(candidates: ArticleCandidate[]): Promise<Set<string>> {
+    if (candidates.length === 0) return new Set();
+    const externalIds = candidates.map(candidate => candidate.id);
+    const canonicalUrls = candidates.map(candidate => candidate.sourceUrl);
     const result = await this.pool.query(
-      `select distinct a.external_id
+      `select distinct a.external_id, a.canonical_url
          from articles a
          join scout_results s on s.article_id = a.id
-        where a.external_id = any($1::text[])`,
-      [externalIds]
+        where a.external_id = any($1::text[])
+           or a.canonical_url = any($2::text[])`,
+      [externalIds, canonicalUrls]
     );
-    return new Set(result.rows.map(row => String(row.external_id)));
+    const processedExternalIds = new Set(result.rows.map(row => String(row.external_id)));
+    const processedCanonicalUrls = new Set(result.rows.map(row => String(row.canonical_url)));
+    return new Set(
+      candidates
+        .filter(candidate =>
+          processedExternalIds.has(candidate.id) || processedCanonicalUrls.has(candidate.sourceUrl)
+        )
+        .map(candidate => candidate.id)
+    );
   }
 
   async saveCompletedRun(run: PersistedPipelineRun): Promise<{ runId: string; cardIds: string[] }> {
@@ -68,9 +79,7 @@ export class NeonContentStore implements ContentStore {
              (article_id, run_id, prompt_version, model, decision, modes, scores, reason, evidence_status, raw_output)
            values ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10::jsonb)
            on conflict (article_id, prompt_version) do update set
-             run_id=excluded.run_id, model=excluded.model, decision=excluded.decision,
-             modes=excluded.modes, scores=excluded.scores, reason=excluded.reason,
-             evidence_status=excluded.evidence_status, raw_output=excluded.raw_output
+             article_id=excluded.article_id
            returning id`,
           [articleId, runId, SCOUT_PROMPT_VERSION, run.ai.scout.model, scout.decision,
            JSON.stringify(scout.modes), JSON.stringify(scout.scores), scout.reason,
@@ -89,10 +98,7 @@ export class NeonContentStore implements ContentStore {
               options, correct_option_index, reveal, resolution_rule)
            values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12)
            on conflict (article_id, prompt_version) do update set
-             scout_result_id=excluded.scout_result_id, run_id=excluded.run_id, model=excluded.model,
-             mode=excluded.mode, hook=excluded.hook, question=excluded.question,
-             options=excluded.options, correct_option_index=excluded.correct_option_index,
-             reveal=excluded.reveal, resolution_rule=excluded.resolution_rule, updated_at=now()
+             article_id=excluded.article_id
            returning id`,
           [articleId, scoutIds.get(card.articleId) ?? null, runId, EDITOR_PROMPT_VERSION,
            run.ai.editor.model, card.mode, card.hook, card.question, JSON.stringify(card.options),
@@ -260,7 +266,7 @@ export class NeonContentStore implements ContentStore {
             select 1
               from daily_edition_cards dec
               join daily_editions de on de.id=dec.edition_id
-             where dec.card_id=gc.id and de.status='published'
+             where dec.card_id=gc.id and de.status <> 'draft'
           )
         returning id`,
       [cardId, status]
@@ -282,6 +288,13 @@ export class NeonContentStore implements ContentStore {
       if (locked.rowCount === 0) throw new Error(`Edition ${editionDate} not found`);
       const editionId = String(locked.rows[0].id);
       const current = String(locked.rows[0].status);
+
+      if (current === status) {
+        await client.query("commit");
+        const edition = await this.getEdition(editionDate);
+        if (!edition) throw new Error(`Edition ${editionDate} disappeared after idempotent transition`);
+        return edition;
+      }
 
       if (status === "reviewed" && current !== "draft") {
         throw new Error(`Edition ${editionDate} must be draft before review`);
