@@ -254,6 +254,8 @@ export class NeonContentStore implements ContentStore {
           resolvedOptionIndex: resolved ? Number(row.correct_option_index) : null,
           reveal: resolved ? row.reveal : null,
           voidReason: voided && row.resolution?.reason ? String(row.resolution.reason) : null,
+          resolutionEvidenceUrl:
+            (resolved || voided) && row.resolution?.evidenceUrl ? String(row.resolution.evidenceUrl) : null,
           sourceName: row.source_name,
           sourceUrl: row.source_url
         };
@@ -379,6 +381,7 @@ export class NeonContentStore implements ContentStore {
       `update game_cards
           set lifecycle_status='resolved',
               correct_option_index=$2,
+              reveal=$4,
               resolution=jsonb_build_object(
                 'outcomeOptionIndex',$2,
                 'evidenceUrl',$3,
