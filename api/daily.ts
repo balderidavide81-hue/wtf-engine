@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { buildDailyQueue } from "../src/pipeline/daily.js";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
 import { hasBearerSecret } from "../src/auth/bearer.js";
+import { SCOUT_BATCH_LIMIT } from "../src/ai/scout.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
@@ -13,8 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "method_not_allowed" });
   }
 
-  const requested = Number(req.query.limit ?? 30);
-  const limit = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), 30)) : 30;
+  const requested = Number(req.query.limit ?? SCOUT_BATCH_LIMIT);
+  const limit = Number.isFinite(requested) ? Math.max(1, Math.min(Math.trunc(requested), SCOUT_BATCH_LIMIT)) : SCOUT_BATCH_LIMIT;
 
   if (!process.env.DATABASE_URL) {
     return res.status(503).json({ error: "persistence_not_configured" });
