@@ -43,7 +43,7 @@ const schema = {
           hook: { type: "string" },
           question: { type: "string" },
           options: { type: "array", items: { type: "string" } },
-          correctOptionIndex: { type: ["integer", "null"] },
+          correctOptionIndex: { type: ["integer", "null"], minimum: 0 },
           reveal: { type: "string" },
           resolutionRule: { type: ["string", "null"] }
         },
@@ -55,6 +55,22 @@ const schema = {
 } as const;
 
 const DEFAULT_EDITOR_LIMIT = 12;
+
+function compactEditorItem(item: { candidate: ArticleCandidate; scout: ScoutResult }) {
+  return {
+    candidate: {
+      id: item.candidate.id,
+      sourceName: item.candidate.sourceName,
+      sourceUrl: item.candidate.sourceUrl,
+      title: item.candidate.title,
+      summary: item.candidate.summary ?? null,
+      publishedAt: item.candidate.publishedAt ?? null,
+      language: item.candidate.language ?? null,
+      country: item.candidate.country ?? null
+    },
+    scout: item.scout
+  };
+}
 
 export class OpenAIEditor {
   private readonly client: OpenAI;
@@ -75,7 +91,7 @@ export class OpenAIEditor {
     const response = await this.client.responses.create({
       model,
       instructions,
-      input: JSON.stringify(eligible),
+      input: JSON.stringify(eligible.map(compactEditorItem)),
       text: { format: { type: "json_schema", name: "wtf_editor_batch", strict: true, schema } }
     });
     const parsed = JSON.parse(response.output_text) as { cards: GameCardDraft[] };

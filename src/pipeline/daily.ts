@@ -12,6 +12,33 @@ function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
   return bt - at;
 }
 
+function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): ArticleCandidate[] {
+  const sorted = [...candidates].sort(newestFirst);
+  const selected: ArticleCandidate[] = [];
+  const perSource = new Map<string, number>();
+  const sourceCap = Math.max(2, Math.ceil(limit / 4));
+
+  // First pass guarantees breadth when several feeds have fresh material.
+  for (const candidate of sorted) {
+    if (selected.length >= limit) break;
+    const count = perSource.get(candidate.sourceName) ?? 0;
+    if (count >= sourceCap) continue;
+    selected.push(candidate);
+    perSource.set(candidate.sourceName, count + 1);
+  }
+
+  // Fill unused capacity without throwing away good material from prolific sources.
+  if (selected.length < limit) {
+    const used = new Set(selected.map(candidate => candidate.id));
+    for (const candidate of sorted) {
+      if (selected.length >= limit) break;
+      if (used.has(candidate.id)) continue;
+      selected.push(candidate);
+    }
+  }
+  return selected;
+}
+
 export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
   scouted: number;
@@ -24,7 +51,8 @@ export interface DailyQueueReport {
 
 export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<DailyQueueReport> {
   const collection = await collect();
-  const candidates = [...collection.candidates].sort(newestFirst).slice(0, Math.max(1, Math.min(limit, 30)));
+  const scoutLimit = Math.max(1, Math.min(limit, 30));
+  const candidates = selectScoutCandidates(collection.candidates, scoutLimit);
 
   const scout = new OpenAIScout();
   const batch = await scout.classifyDetailed(candidates);
