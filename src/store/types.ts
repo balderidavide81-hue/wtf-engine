@@ -59,3 +59,14 @@ export interface PublicEditionRecord {
   editionDate: string;
   cards: PublicGameCardRecord[];
 }
+
+export interface PredictionResolutionInput {
+  outcomeOptionIndex: number;
+  evidenceUrl: string;
+  evidenceNote: string;
+}
+
+export interface PredictionVoidInput {
+  reason: string;
+  evidenceUrl?: string;
+}
