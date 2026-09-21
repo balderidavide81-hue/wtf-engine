@@ -59,7 +59,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
   const collection = await collect();
   const scoutLimit = Math.max(1, Math.min(limit, 30));
   const processedIds = store
-    ? await store.findProcessedExternalIds(collection.candidates.map(candidate => candidate.id))
+    ? await store.findProcessedCandidateIds(collection.candidates)
     : new Set<string>();
   const unseenCandidates = collection.candidates.filter(candidate => !processedIds.has(candidate.id));
   const candidates = selectScoutCandidates(unseenCandidates, scoutLimit);
