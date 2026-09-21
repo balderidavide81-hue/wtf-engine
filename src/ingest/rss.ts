@@ -14,6 +14,8 @@ type FeedItem = Record<string, unknown>;
 
 const MAX_RSS_RESPONSE_CHARS = 2_000_000;
 const MAX_RSS_ITEMS = 100;
+const MAX_TITLE_CHARS = 600;
+const MAX_SUMMARY_CHARS = 4_000;
 
 function text(value: unknown): string | undefined {
   if (typeof value === "string") return value.trim() || undefined;
@@ -23,6 +25,13 @@ function text(value: unknown): string | undefined {
     return text(obj["#text"]) ?? text(obj["@_href"]);
   }
   return undefined;
+}
+
+function cleanFeedText(value: unknown, maxChars: number): string | undefined {
+  const raw = text(value);
+  if (!raw) return undefined;
+  const cleaned = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return cleaned ? cleaned.slice(0, maxChars) : undefined;
 }
 
 function itemsFrom(parsed: Record<string, any>): FeedItem[] {
@@ -51,7 +60,7 @@ export class RssSource implements NewsSource {
     const parsed = new XMLParser({ ignoreAttributes: false }).parse(xml) as Record<string, any>;
 
     return itemsFrom(parsed).slice(0, MAX_RSS_ITEMS).flatMap(item => {
-      const title = text(item.title);
+      const title = cleanFeedText(item.title, MAX_TITLE_CHARS);
       const link = text(item.link) ?? text(item.guid);
       if (!title || !link) return [];
 
@@ -62,7 +71,10 @@ export class RssSource implements NewsSource {
         sourceName: this.name,
         sourceUrl: canonicalLink,
         title,
-        summary: text(item.description) ?? text(item.summary) ?? text(item.content),
+        summary:
+          cleanFeedText(item.description, MAX_SUMMARY_CHARS)
+          ?? cleanFeedText(item.summary, MAX_SUMMARY_CHARS)
+          ?? cleanFeedText(item.content, MAX_SUMMARY_CHARS),
         publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
         language: this.config.language,
         country: this.config.country
