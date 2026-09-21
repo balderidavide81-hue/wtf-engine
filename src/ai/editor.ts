@@ -60,7 +60,17 @@ const schema = {
 export const EDITOR_BATCH_LIMIT = 12;
 
 function validateCardDraft(card: GameCardDraft): void {
+  if (!card.hook.trim() || !card.question.trim() || !card.reveal.trim()) {
+    throw new Error(`Editor card ${card.articleId} has empty required text`);
+  }
   if (card.options.length < 2) throw new Error(`Editor card ${card.articleId} must have at least two options`);
+  if (card.options.some(option => !option.trim())) {
+    throw new Error(`Editor card ${card.articleId} contains an empty option`);
+  }
+  const normalizedOptions = card.options.map(option => option.trim().toLocaleLowerCase());
+  if (new Set(normalizedOptions).size !== normalizedOptions.length) {
+    throw new Error(`Editor card ${card.articleId} contains duplicate options`);
+  }
   if (card.correctOptionIndex !== null &&
       (!Number.isInteger(card.correctOptionIndex) || card.correctOptionIndex < 0 || card.correctOptionIndex >= card.options.length)) {
     throw new Error(`Editor card ${card.articleId} has an invalid correctOptionIndex`);
