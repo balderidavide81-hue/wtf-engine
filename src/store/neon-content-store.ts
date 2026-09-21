@@ -1,10 +1,9 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 import type { ArticleCandidate } from "../domain/types.js";
+import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
+import { EDITOR_PROMPT_VERSION } from "../ai/editor.js";
 import type { ContentStore } from "./content-store.js";
 import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
-
-const SCOUT_PROMPT_VERSION = "scout/v0.1";
-const EDITOR_PROMPT_VERSION = "editor/inline-v0.1";
 
 function requireDatabaseUrl(): string {
   const value = process.env.DATABASE_URL;
