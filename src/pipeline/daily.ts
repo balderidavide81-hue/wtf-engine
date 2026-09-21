@@ -15,6 +15,8 @@ function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
 export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
   scouted: number;
+  editorEligible: number;
+  edited: number;
   ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
   cards: GameCardDraft[];
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
@@ -43,12 +45,15 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
 
   const queue = diversifyQueue(rankedQueue);
   const editor = new OpenAIEditor();
+  const editorEligible = queue.filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED").length;
   const edited = await editor.draft(queue);
   const totalEstimatedCostUsd = batch.usage.estimatedCostUsd + edited.usage.estimatedCostUsd;
   const { candidates: _ignored, ...collectionSummary } = collection;
   return {
     collection: collectionSummary,
     scouted: candidates.length,
+    editorEligible,
+    edited: edited.cards.length,
     ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd },
     cards: edited.cards,
     queue

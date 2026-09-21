@@ -54,6 +54,8 @@ const schema = {
   required: ["cards"]
 } as const;
 
+const DEFAULT_EDITOR_LIMIT = 12;
+
 export class OpenAIEditor {
   private readonly client: OpenAI;
   constructor(apiKey = process.env.OPENAI_API_KEY) {
@@ -61,8 +63,10 @@ export class OpenAIEditor {
     this.client = new OpenAI({ apiKey });
   }
 
-  async draft(items: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>): Promise<EditorBatch> {
-    const eligible = items.filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED");
+  async draft(items: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>, limit = DEFAULT_EDITOR_LIMIT): Promise<EditorBatch> {
+    const eligible = items
+      .filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED")
+      .slice(0, Math.max(1, Math.min(limit, DEFAULT_EDITOR_LIMIT)));
     if (eligible.length === 0) {
       return { cards: [], usage: emptyUsage(process.env.OPENAI_EDITOR_MODEL ?? "gpt-5.6-luna") };
     }

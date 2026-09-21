@@ -94,3 +94,12 @@ Source breadth improves discovery. Editorial diversity determines whether the ga
 - Smithsonian Magazine: official RSS directory verified, but not enabled in this commit pending a tighter category selection and ingestion check; remains a high-value candidate for history/science oddities.
 - ScienceAlert: strong science discovery source, but no official RSS endpoint was verified in this pass; not enabled.
 - Oddity Central: extremely high raw WTF yield, but secondary-source quality and sensitive/crime-heavy stories mean it should not be trusted as sole evidence. Keep as a future discovery-only adapter with mandatory independent verification rather than promoting it directly to default RSS.
+
+
+## Cost-control gate — 2026-09-21
+
+- Deterministic near-duplicate headline detection now runs before Scout, so syndicated/reworded copies do not consume AI tokens when their title overlap is very high.
+- Collection diagnostics expose drop reasons and per-source fetch counts, making noisy or broken feeds visible.
+- Scout remains capped at 30 candidates per daily run.
+- Editor is independently capped at 12 KEEP + SUPPORTED candidates per run. Adding more feeds therefore broadens discovery without allowing Editor cost to grow without bound.
+- Smithsonian's official RSS directory is confirmed and currently lists Latest Articles, History, Innovation, Science, Smart News, Travel and other categories. Activation remains pending until the raw feed endpoint/ingestion behavior is verified directly; the HTML category page is not substituted for RSS.
