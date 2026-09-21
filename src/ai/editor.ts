@@ -18,6 +18,8 @@ export interface EditorBatch {
   usage: AiUsageDiagnostics;
 }
 
+export const EDITOR_PROMPT_VERSION = "editor/inline-v0.1";
+
 const instructions = `
 You are Luna Editor for WTF Engine.
 Turn only strong, supported Scout KEEP candidates into concise game-card drafts.
