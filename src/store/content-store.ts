@@ -10,8 +10,12 @@ export interface ContentStore {
    */
   saveCompletedRun(run: PersistedPipelineRun): Promise<{ runId: string; cardIds: string[] }>;
 
-  /** Creates or replaces the draft ordering for a calendar day. */
-  saveDraftEdition(editionDate: string, cardIds: string[]): Promise<DailyEditionRecord>;
+  /**
+   * Appends newly generated cards to a draft edition without deleting existing
+   * cards. Must be idempotent for repeated card IDs and must refuse to mutate a
+   * reviewed/published edition.
+   */
+  appendDraftEdition(editionDate: string, cardIds: string[]): Promise<DailyEditionRecord>;
 
   getEdition(editionDate: string): Promise<DailyEditionRecord | null>;
 }
