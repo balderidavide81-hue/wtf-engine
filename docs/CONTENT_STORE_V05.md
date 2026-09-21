@@ -41,3 +41,17 @@ A second generation run on the same UTC day is incremental. Existing edition car
 Once an edition is `reviewed` or `published`, generation is not allowed to mutate its membership. This prevents a later scheduler/manual run from silently changing an edition that has already entered editorial workflow.
 
 Persistence diagnostics distinguish `newCardIds` from the complete `editionCardIds`.
+
+## Editorial workflow
+
+`GET /api/editorial?date=YYYY-MM-DD` returns the draft/reviewed/published edition with full card and source context.
+
+`POST /api/editorial?date=YYYY-MM-DD` accepts:
+- `review_card` + `cardId`
+- `reject_card` + `cardId`
+- `review_edition`
+- `publish_edition`
+
+An edition can move only `draft → reviewed → published`. Every non-rejected card must be individually reviewed before the edition enters review. Publishing promotes reviewed WTF/STORY cards to `published` and PREDICT cards to `open`. Published editions/cards cannot be silently edited by later generation or review calls.
+
+This endpoint is an internal workflow surface and must be protected by authentication before any public production exposure.
