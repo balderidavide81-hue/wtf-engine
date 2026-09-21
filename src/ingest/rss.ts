@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import type { ArticleCandidate } from "../domain/types.js";
 import type { NewsSource } from "./index.js";
+import { canonicalizeUrl } from "../domain/url.js";
 
 export interface RssSourceConfig {
   name: string;
@@ -42,15 +43,16 @@ export class RssSource implements NewsSource {
     const xml = await response.text();
     const parsed = new XMLParser({ ignoreAttributes: false }).parse(xml) as Record<string, any>;
 
-    return itemsFrom(parsed).flatMap((item, index) => {
+    return itemsFrom(parsed).flatMap(item => {
       const title = text(item.title);
       const link = text(item.link) ?? text(item.guid);
       if (!title || !link) return [];
 
+      const canonicalLink = canonicalizeUrl(link);
       return [{
-        id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${index}:${link}`,
+        id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${canonicalLink}`,
         sourceName: this.name,
-        sourceUrl: link,
+        sourceUrl: canonicalLink,
         title,
         summary: text(item.description) ?? text(item.summary) ?? text(item.content),
         publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
