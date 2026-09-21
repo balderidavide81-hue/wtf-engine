@@ -47,10 +47,14 @@ export interface EditorialEditionRecord extends DailyEditionRecord {
 export interface PublicGameCardRecord {
   id: string;
   mode: "WTF" | "PREDICT" | "STORY";
+  status: Extract<CardLifecycleStatus, "published" | "open" | "resolved" | "void">;
   hook: string;
   question: string;
   options: string[];
+  resolutionRule: string | null;
+  resolvedOptionIndex: number | null;
   reveal: string | null;
+  voidReason: string | null;
   sourceName: string;
   sourceUrl: string;
 }
