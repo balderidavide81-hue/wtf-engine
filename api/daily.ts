@@ -4,6 +4,7 @@ import { NeonContentStore } from "../src/store/neon-content-store.js";
 import { hasBearerSecret } from "../src/auth/bearer.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Cache-Control", "no-store");
   if (!hasBearerSecret(req, process.env.GENERATION_API_TOKEN)) {
     return res.status(401).json({ error: "unauthorized" });
   }
