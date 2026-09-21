@@ -58,6 +58,22 @@ const schema = {
 
 const DEFAULT_EDITOR_LIMIT = 12;
 
+function validateCardDraft(card: GameCardDraft): void {
+  if (card.options.length < 2) throw new Error(`Editor card ${card.articleId} must have at least two options`);
+  if (card.correctOptionIndex !== null &&
+      (!Number.isInteger(card.correctOptionIndex) || card.correctOptionIndex < 0 || card.correctOptionIndex >= card.options.length)) {
+    throw new Error(`Editor card ${card.articleId} has an invalid correctOptionIndex`);
+  }
+  if (card.mode === "WTF" && card.correctOptionIndex === null) {
+    throw new Error(`WTF card ${card.articleId} requires a correctOptionIndex`);
+  }
+  if (card.mode === "PREDICT") {
+    if (card.correctOptionIndex !== null) throw new Error(`PREDICT card ${card.articleId} must not have a resolved answer`);
+    if (!card.resolutionRule?.trim()) throw new Error(`PREDICT card ${card.articleId} requires a resolutionRule`);
+  }
+}
+
+
 function compactEditorItem(item: { candidate: ArticleCandidate; scout: ScoutResult }) {
   return {
     candidate: {
@@ -97,6 +113,14 @@ export class OpenAIEditor {
       text: { format: { type: "json_schema", name: "wtf_editor_batch", strict: true, schema } }
     });
     const parsed = JSON.parse(response.output_text) as { cards: GameCardDraft[] };
+    const seenArticleIds = new Set<string>();
+    for (const card of parsed.cards) {
+      validateCardDraft(card);
+      if (seenArticleIds.has(card.articleId)) {
+        throw new Error(`Editor returned duplicate card for article ${card.articleId}`);
+      }
+      seenArticleIds.add(card.articleId);
+    }
     return { cards: parsed.cards, usage: makeUsage(response, model) };
   }
 }
