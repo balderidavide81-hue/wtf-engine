@@ -59,4 +59,4 @@ Individual card review state freezes when an edition leaves `draft`. PREDICT adj
 - real production failures become regression cases;
 - no real-money/cash-out mechanics;
 - do not treat Scout classification as independent fact verification;
-- keep generation single-flight until a database claim/lease is implemented.
+- enforce paid generation single-flight through the expiring database-backed generation lease.
