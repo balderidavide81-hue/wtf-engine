@@ -225,7 +225,7 @@ export class NeonContentStore implements ContentStore {
   async getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null> {
     const result = await this.pool.query(
       `select de.edition_date::text, gc.id, gc.mode, gc.hook, gc.question, gc.options,
-              gc.reveal, gc.correct_option_index, gc.lifecycle_status,
+              gc.reveal, gc.lifecycle_status,
               a.source_name, a.source_url
          from daily_editions de
          join daily_edition_cards dec on dec.edition_id=de.id
@@ -241,14 +241,13 @@ export class NeonContentStore implements ContentStore {
     return {
       editionDate: String(result.rows[0].edition_date),
       cards: result.rows.map(row => {
-        const predictionOpen = row.mode === "PREDICT" && row.lifecycle_status === "open";
         return {
           id: String(row.id),
           mode: row.mode,
           hook: row.hook,
           question: row.question,
           options: row.options,
-          reveal: predictionOpen ? null : row.reveal,
+          reveal: row.lifecycle_status === "resolved" ? row.reveal : null,
           sourceName: row.source_name,
           sourceUrl: row.source_url
         };
