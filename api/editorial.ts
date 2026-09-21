@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const action = req.body?.action;
       if (action === "review_card" || action === "reject_card") {
         if (typeof req.body?.cardId !== "string") return res.status(400).json({ error: "card_id_required" });
-        await store().setCardLifecycle(req.body.cardId, action === "review_card" ? "reviewed" : "rejected");
+        await store().setCardLifecycle(date, req.body.cardId, action === "review_card" ? "reviewed" : "rejected");
         return res.status(200).json({ ok: true });
       }
       if (action === "resolve_prediction") {
