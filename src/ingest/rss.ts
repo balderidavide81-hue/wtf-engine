@@ -12,6 +12,9 @@ export interface RssSourceConfig {
 
 type FeedItem = Record<string, unknown>;
 
+const MAX_RSS_RESPONSE_CHARS = 2_000_000;
+const MAX_RSS_ITEMS = 100;
+
 function text(value: unknown): string | undefined {
   if (typeof value === "string") return value.trim() || undefined;
   if (typeof value === "number") return String(value);
@@ -42,9 +45,12 @@ export class RssSource implements NewsSource {
     if (!response.ok) throw new Error(`${this.name}: HTTP ${response.status}`);
 
     const xml = await response.text();
+    if (xml.length > MAX_RSS_RESPONSE_CHARS) {
+      throw new Error(`${this.name}: RSS response exceeds size limit`);
+    }
     const parsed = new XMLParser({ ignoreAttributes: false }).parse(xml) as Record<string, any>;
 
-    return itemsFrom(parsed).flatMap(item => {
+    return itemsFrom(parsed).slice(0, MAX_RSS_ITEMS).flatMap(item => {
       const title = text(item.title);
       const link = text(item.link) ?? text(item.guid);
       if (!title || !link) return [];
