@@ -65,3 +65,12 @@ This endpoint is an internal workflow surface and must be protected by authentic
 For an open PREDICT card, the public payload suppresses `reveal` until the card is resolved. This prevents the gameplay API from leaking the future answer/resolution content while betting is open. Published WTF/STORY cards and resolved predictions may expose their reveal.
 
 The gameplay response is cacheable at the edge for 60 seconds with stale-while-revalidate, keeping normal player reads independent from AI generation.
+
+## PREDICT resolution lifecycle
+
+Published PREDICT cards enter `open`. Resolution is an authenticated editorial action and is accepted only once while the card is open.
+
+- `resolve_prediction`: requires `cardId`, a valid `outcomeOptionIndex`, `evidenceUrl`, and non-empty `evidenceNote`. The selected outcome and evidence are stored atomically and the card becomes `resolved`.
+- `void_prediction`: requires `cardId` and a reason; an evidence URL is optional. The card becomes `void`.
+
+A resolved/void prediction cannot be resolved again through these operations. Outcome indexes are checked against the stored options array. This keeps the result immutable after adjudication and prevents malformed outcome values.
