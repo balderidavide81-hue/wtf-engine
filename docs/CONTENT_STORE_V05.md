@@ -74,3 +74,11 @@ Published PREDICT cards enter `open`. Resolution is an authenticated editorial a
 - `void_prediction`: requires `cardId` and a reason; an evidence URL is optional. The card becomes `void`.
 
 A resolved/void prediction cannot be resolved again through these operations. Outcome indexes are checked against the stored options array. This keeps the result immutable after adjudication and prevents malformed outcome values.
+
+## v0.5 source audit hardening
+
+The paid generation endpoint `/api/daily` is no longer public: it requires `Authorization: Bearer <GENERATION_API_TOKEN>` and fails closed when the secret is absent. This is separate from `EDITORIAL_API_TOKEN`, so gameplay clients cannot trigger Luna spend or obtain generation diagnostics.
+
+Scout and Editor persistence now has database uniqueness per `(article_id, prompt_version)`, with conflict-safe writes. The inline Editor prompt is recorded explicitly as `editor/inline-v0.1` rather than implying a nonexistent external prompt file.
+
+The public surface remains only the read-only published gameplay endpoint. Migration/deploy remain deliberately unapplied during source audit.
