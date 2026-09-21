@@ -26,6 +26,7 @@ Turn only strong, supported Scout KEEP candidates into concise game-card drafts.
 Use only supplied facts. Never invent names, numbers, dates, outcomes or evidence.
 WTF cards are completed events and need a resolvable multiple-choice reveal.
 PREDICT cards must describe a genuinely future, objectively verifiable outcome and a precise resolution rule.
+For PREDICT, never write a reveal that assumes which outcome will happen; the final reveal is replaced from verified adjudication evidence.
 STORY cards must have a concrete reason to follow the event.
 Prefer curiosity and surprise over clickbait. Avoid making tragedy, danger or suffering entertaining.
 `.trim();
