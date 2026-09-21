@@ -1,9 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { OpenAIScout } from "../src/ai/scout.js";
+import { OpenAIScout, SCOUT_BATCH_LIMIT } from "../src/ai/scout.js";
 import type { ArticleCandidate } from "../src/domain/types.js";
 import { hasBearerSecret } from "../src/auth/bearer.js";
 
-const MAX_BATCH = 30;
 const MAX_FIELD_CHARS = 12_000;
 const MAX_BATCH_CHARS = 120_000;
 
@@ -36,8 +35,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!Array.isArray(candidates) || !candidates.every(isCandidate)) {
     return res.status(400).json({ error: "invalid_candidates" });
   }
-  if (candidates.length === 0 || candidates.length > MAX_BATCH) {
-    return res.status(400).json({ error: "batch_size", min: 1, max: MAX_BATCH });
+  if (candidates.length === 0 || candidates.length > SCOUT_BATCH_LIMIT) {
+    return res.status(400).json({ error: "batch_size", min: 1, max: SCOUT_BATCH_LIMIT });
   }
   const batchChars = candidates.reduce((total, candidate) => total + JSON.stringify(candidate).length, 0);
   if (batchChars > MAX_BATCH_CHARS) {
