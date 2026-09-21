@@ -6,6 +6,24 @@ const DEFAULT_SOURCES: RssSourceConfig[] = [
     url: "https://rss.upi.com/news/odd_news.rss",
     language: "en",
     country: "US"
+  },
+  {
+    name: "Phys.org Plants & Animals",
+    url: "https://phys.org/rss-feed/breaking/biology-news/plants-animals/",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "Phys.org Archaeology",
+    url: "https://phys.org/rss-feed/breaking/science-news/archaeology-fossils/",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "Phys.org Space",
+    url: "https://phys.org/rss-feed/breaking/space-news/",
+    language: "en",
+    country: "GLOBAL"
   }
 ];
 

@@ -22,7 +22,7 @@ This prevents a speculative URL from breaking the collector.
 
 ### Tier B — discovery/science
 - Smithsonian Smart News / Good News — unusual animals, rediscoveries, archaeology, wholesome discoveries.
-- Phys.org — bizarre biology, strange species, space/robotics/materials discoveries.
+- Phys.org — **verified RSS provider**. Enabled lanes: Plants & Animals, Archaeology, Space. Phys.org explicitly documents free RSS use including commercial use with attribution; headlines/links must not be altered. Keep source credit/link in downstream cards.
 - Atlas Obscura — unusual places, customs, food, objects and historical curiosities. Treat evergreen features separately from current news.
 
 ### Tier C — general-news discovery
@@ -79,3 +79,11 @@ Target later:
 - sensitivity remains a hard negative signal.
 
 Source breadth improves discovery. Editorial diversity determines whether the game stays funny.
+
+
+## Verification notes — 2026-09-21
+
+- Phys.org: official RSS directory verified; direct XML endpoints confirmed for Plants & Animals, Archaeology and Space. Official terms on the feed directory permit personal/commercial use, require Phys.org credit, and prohibit altering feed headlines/links.
+- ABC Australia: do **not** enable via RSS. ABC's current help page states its RSS feeds are no longer updated. It remains a useful editorial/source-discovery target through a future compliant non-RSS adapter, not through stale feeds.
+- Guinness World Records: valuable editorial target, but no current official RSS endpoint was verified in this pass; remains disabled rather than guessing a feed URL.
+- Euronews Unusual: valuable editorial target, but a dedicated current machine-readable Unusual feed was not verified in this pass; remains disabled.
