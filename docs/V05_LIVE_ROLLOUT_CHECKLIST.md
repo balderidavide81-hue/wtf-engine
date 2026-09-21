@@ -27,7 +27,7 @@ Move the v0.5 content store live with one controlled database migration and one 
 Apply `db/migrations/001_content_store_v05.sql` once.
 
 Immediately verify, without writing content, that these objects exist:
-- tables: `sources`, `articles`, `pipeline_runs`, `scout_results`, `game_cards`, `daily_editions`, `daily_edition_cards`
+- tables: `sources`, `articles`, `generation_leases`, `pipeline_runs`, `scout_results`, `game_cards`, `daily_editions`, `daily_edition_cards`
 - unique article identities: `external_id`, `canonical_url`
 - unique AI provenance indexes:
   - `scout_results_article_prompt_uq`
@@ -59,7 +59,7 @@ Use exactly one controlled generation run.
 8. Move the edition to `reviewed`.
 9. Publish it.
 10. Fetch `/api/gameplay-daily`.
-   Expected: only published/open/resolved playable cards; no draft/rejected content; active-card reveal hidden.
+   Expected: only published/open/resolved/void public lifecycle states; no draft/rejected content; active-card reveal hidden.
 11. If a PREDICT card exists, verify it is `open`; do not resolve it merely for smoke testing unless there is real-world evidence.
 
 ## Cost / concurrency guard
