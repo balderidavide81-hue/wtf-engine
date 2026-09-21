@@ -1,4 +1,5 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
+import { createHash } from "node:crypto";
 import type { ArticleCandidate } from "../domain/types.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
@@ -13,7 +14,9 @@ function requireDatabaseUrl(): string {
 }
 
 function sourceKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const normalized = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "source";
+  const digest = createHash("sha256").update(name.trim()).digest("hex").slice(0, 12);
+  return `${normalized}-${digest}`;
 }
 
 export class NeonContentStore implements ContentStore {
