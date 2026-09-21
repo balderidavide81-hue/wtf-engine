@@ -28,7 +28,7 @@ export interface Scout {
   classifyDetailed(candidates: ArticleCandidate[]): Promise<ScoutBatch>;
 }
 
-export const SCOUT_PROMPT_VERSION = "scout/v0.1";
+export const SCOUT_PROMPT_VERSION = "scout/v0.2";
 
 const instructions = `
 You are Luna Scout, the first editorial classifier for WTF Engine.
