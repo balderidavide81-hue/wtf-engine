@@ -1,7 +1,7 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 import type { ArticleCandidate } from "../domain/types.js";
 import type { ContentStore } from "./content-store.js";
-import type { DailyEditionRecord, PersistedPipelineRun } from "./types.js";
+import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus } from "./types.js";
 
 const SCOUT_PROMPT_VERSION = "scout/v0.1";
 const EDITOR_PROMPT_VERSION = "editor/v0.1";
@@ -171,6 +171,125 @@ export class NeonContentStore implements ContentStore {
       status: edition.rows[0].status,
       cardIds: cards.rows.map(row => String(row.card_id))
     };
+  }
+
+  async getEditorialEdition(editionDate: string): Promise<EditorialEditionRecord | null> {
+    const edition = await this.getEdition(editionDate);
+    if (!edition) return null;
+    const result = await this.pool.query(
+      `select gc.id, gc.article_id, gc.mode, gc.hook, gc.question, gc.options,
+              gc.correct_option_index, gc.reveal, gc.resolution_rule, gc.lifecycle_status,
+              a.source_name, a.source_url, a.title
+         from daily_edition_cards dec
+         join game_cards gc on gc.id = dec.card_id
+         join articles a on a.id = gc.article_id
+        where dec.edition_id = $1
+        order by dec.position`,
+      [edition.id]
+    );
+    return {
+      ...edition,
+      cards: result.rows.map(row => ({
+        id: String(row.id),
+        articleId: String(row.article_id),
+        mode: row.mode,
+        hook: row.hook,
+        question: row.question,
+        options: row.options,
+        correctOptionIndex: row.correct_option_index,
+        reveal: row.reveal,
+        resolutionRule: row.resolution_rule,
+        lifecycleStatus: row.lifecycle_status,
+        sourceName: row.source_name,
+        sourceUrl: row.source_url,
+        title: row.title
+      }))
+    };
+  }
+
+  async setCardLifecycle(cardId: string, status: Extract<CardLifecycleStatus, "reviewed" | "rejected">): Promise<void> {
+    const result = await this.pool.query(
+      `update game_cards gc
+          set lifecycle_status=$2, updated_at=now()
+        where gc.id=$1
+          and gc.lifecycle_status in ('draft','reviewed','rejected')
+          and not exists (
+            select 1
+              from daily_edition_cards dec
+              join daily_editions de on de.id=dec.edition_id
+             where dec.card_id=gc.id and de.status='published'
+          )
+        returning id`,
+      [cardId, status]
+    );
+    if (result.rowCount === 0) throw new Error(`Card ${cardId} cannot be moved to ${status}`);
+  }
+
+  async setEditionStatus(
+    editionDate: string,
+    status: Extract<EditionStatus, "reviewed" | "published">
+  ): Promise<DailyEditionRecord> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const locked = await client.query(
+        "select id, status from daily_editions where edition_date=$1 for update",
+        [editionDate]
+      );
+      if (locked.rowCount === 0) throw new Error(`Edition ${editionDate} not found`);
+      const editionId = String(locked.rows[0].id);
+      const current = String(locked.rows[0].status);
+
+      if (status === "reviewed" && current !== "draft") {
+        throw new Error(`Edition ${editionDate} must be draft before review`);
+      }
+      if (status === "published" && current !== "reviewed") {
+        throw new Error(`Edition ${editionDate} must be reviewed before publish`);
+      }
+
+      if (status === "reviewed") {
+        const counts = await client.query(
+          `select count(*)::int as total,
+                  count(*) filter (where gc.lifecycle_status='reviewed')::int as reviewed
+             from daily_edition_cards dec
+             join game_cards gc on gc.id=dec.card_id
+            where dec.edition_id=$1 and gc.lifecycle_status <> 'rejected'`,
+          [editionId]
+        );
+        if (Number(counts.rows[0].total) === 0 || Number(counts.rows[0].reviewed) !== Number(counts.rows[0].total)) {
+          throw new Error("All non-rejected cards must be reviewed before the edition can be reviewed");
+        }
+      }
+
+      if (status === "published") {
+        await client.query(
+          `update game_cards gc
+              set lifecycle_status = case when gc.mode='PREDICT' then 'open' else 'published' end,
+                  updated_at=now()
+            where gc.id in (
+              select dec.card_id from daily_edition_cards dec
+               where dec.edition_id=$1
+            ) and gc.lifecycle_status='reviewed'`,
+          [editionId]
+        );
+      }
+
+      await client.query(
+        `update daily_editions
+            set status=$2, published_at=case when $2='published' then now() else published_at end
+          where id=$1`,
+        [editionId, status]
+      );
+      await client.query("commit");
+      const edition = await this.getEdition(editionDate);
+      if (!edition) throw new Error(`Edition ${editionDate} disappeared after update`);
+      return edition;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   private async upsertArticle(client: PoolClient, candidate: ArticleCandidate): Promise<string> {
