@@ -10,8 +10,9 @@ Move the v0.5 content store live with one controlled database migration and one 
 
 1. Freeze source changes for the rollout window.
 2. Confirm the feature branch contains the complete v0.5 block.
-3. Confirm the SQL migration is still unapplied.
-4. Confirm production has or will receive these server-only variables:
+3. Run `npm run typecheck` in an environment with dependencies installed; stop on any error.
+4. Confirm the SQL migration is still unapplied.
+5. Confirm production has or will receive these server-only variables:
    - `DATABASE_URL`
    - `OPENAI_API_KEY`
    - `OPENAI_SCOUT_MODEL`
@@ -19,7 +20,7 @@ Move the v0.5 content store live with one controlled database migration and one 
    - `GENERATION_API_TOKEN`
    - `EDITORIAL_API_TOKEN`
    - `EDITION_TIME_ZONE=Europe/Rome`
-5. Do not place either bearer token in the Flutter/mobile client.
+6. Do not place either bearer token in the Flutter/mobile client.
 
 ## Database step
 
@@ -43,21 +44,23 @@ Deploy only the coherent v0.5 source after the migration and environment variabl
 
 Use exactly one controlled generation run.
 
-1. Call `/api/daily` without `GENERATION_API_TOKEN`.
+1. POST to `/api/daily` without `GENERATION_API_TOKEN`.
    Expected: `401 unauthorized`; no AI call.
-2. Call `/api/editorial` without `EDITORIAL_API_TOKEN`.
+2. Call `/api/scout` and `/api/collect` without `GENERATION_API_TOKEN`.
+   Expected: `401 unauthorized`; no AI call and no feed diagnostics.
+3. Call `/api/editorial` without `EDITORIAL_API_TOKEN`.
    Expected: `401 unauthorized`.
-3. Call `/api/gameplay-daily` before any edition is published.
+4. Call `/api/gameplay-daily` before any edition is published.
    Expected: `404 published_edition_not_found`.
-4. Invoke `/api/daily` once with the generation bearer token.
+5. POST to `/api/daily` once with the generation bearer token.
    Inspect collection, Scout, Editor, cost diagnostics and persistence IDs.
-5. Fetch the draft through authenticated `/api/editorial`.
-6. Review/reject cards.
-7. Move the edition to `reviewed`.
-8. Publish it.
-9. Fetch `/api/gameplay-daily`.
+6. Fetch the draft through authenticated `/api/editorial`.
+7. Review/reject cards.
+8. Move the edition to `reviewed`.
+9. Publish it.
+10. Fetch `/api/gameplay-daily`.
    Expected: only published/open/resolved playable cards; no draft/rejected content; active-card reveal hidden.
-10. If a PREDICT card exists, verify it is `open`; do not resolve it merely for smoke testing unless there is real-world evidence.
+11. If a PREDICT card exists, verify it is `open`; do not resolve it merely for smoke testing unless there is real-world evidence.
 
 ## Cost / concurrency guard
 
@@ -77,3 +80,10 @@ Stop the rollout before another generation call if any of these occur:
 ## Rollback posture
 
 The database migration is additive. If the application deployment must be reverted, disable the new generation/editorial tokens or revert the application deployment while leaving the new tables unused. Do not drop production tables as an emergency rollback unless data has first been explicitly reviewed.
+
+
+## Deep-audit additions
+
+Before the first live run, verify that a published PREDICT exposes its resolution rule but not an outcome. After a real resolution, verify that the public result uses the evidence-backed adjudication note and evidence URL. A voided PREDICT must remain visible as `void` rather than disappearing from the edition.
+
+Do not proceed to migration/deployment from an un-typechecked source snapshot.
