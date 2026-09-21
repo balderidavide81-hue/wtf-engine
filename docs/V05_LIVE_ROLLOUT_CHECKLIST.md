@@ -64,7 +64,7 @@ Use exactly one controlled generation run.
 
 ## Cost / concurrency guard
 
-Run generation single-flight. Do not trigger two `/api/daily` requests simultaneously. Database uniqueness prevents duplicate persisted AI rows, but a race before persistence can still pay for two AI calls.
+`/api/daily` enforces single-flight with the database-backed generation lease. As a smoke check, a deliberately overlapping second authenticated request should receive `409 generation_already_running` rather than start a second paid AI run. Do not perform that overlap test if conserving model cost is more important than testing the guard.
 
 ## Stop conditions
 
