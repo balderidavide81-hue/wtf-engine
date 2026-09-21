@@ -28,4 +28,4 @@ The response includes:
 - generated cards;
 - persistence run/edition IDs when cards were produced.
 
-This is an internal paid generation endpoint, not a gameplay endpoint. It is `no-store` and should be invoked single-flight.
+This is an internal paid generation endpoint, not a gameplay endpoint. It is `no-store`; the database-backed generation lease rejects overlapping runs.
