@@ -1,4 +1,5 @@
 import { OpenAIScout, type AiUsageDiagnostics } from "../ai/scout.js";
+import { OpenAIEditor, type GameCardDraft } from "../ai/editor.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
 import { diversifyQueue } from "./diversity.js";
@@ -14,7 +15,8 @@ function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
 export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
   scouted: number;
-  ai: { scout: AiUsageDiagnostics };
+  ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
+  cards: GameCardDraft[];
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
 }
 
@@ -40,6 +42,15 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
     });
 
   const queue = diversifyQueue(rankedQueue);
+  const editor = new OpenAIEditor();
+  const edited = await editor.draft(queue);
+  const totalEstimatedCostUsd = batch.usage.estimatedCostUsd + edited.usage.estimatedCostUsd;
   const { candidates: _ignored, ...collectionSummary } = collection;
-  return { collection: collectionSummary, scouted: candidates.length, ai: { scout: batch.usage }, queue };
+  return {
+    collection: collectionSummary,
+    scouted: candidates.length,
+    ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd },
+    cards: edited.cards,
+    queue
+  };
 }

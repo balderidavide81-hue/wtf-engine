@@ -24,6 +24,24 @@ const DEFAULT_SOURCES: RssSourceConfig[] = [
     url: "https://phys.org/rss-feed/breaking/space-news/",
     language: "en",
     country: "GLOBAL"
+  },
+  {
+    name: "New Atlas Science",
+    url: "https://refractor.io/science/index.rss",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "New Atlas Technology",
+    url: "https://newatlas.com/technology/index.rss",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "New Atlas Transport",
+    url: "https://newatlas.com/transport/index.rss",
+    language: "en",
+    country: "GLOBAL"
   }
 ];
 

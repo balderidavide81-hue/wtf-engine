@@ -24,6 +24,7 @@ This prevents a speculative URL from breaking the collector.
 - Smithsonian Smart News / Good News — unusual animals, rediscoveries, archaeology, wholesome discoveries.
 - Phys.org — **verified RSS provider**. Enabled lanes: Plants & Animals, Archaeology, Space. Phys.org explicitly documents free RSS use including commercial use with attribution; headlines/links must not be altered. Keep source credit/link in downstream cards.
 - Atlas Obscura — unusual places, customs, food, objects and historical curiosities. Treat evergreen features separately from current news.
+- New Atlas — **official RSS directory verified**. Enabled discovery lanes: Science, Technology, Transport. Broad feeds are intentionally sent through Scout; they add robotics, bizarre vehicles, unusual engineering and science but should not bypass playability scoring.
 
 ### Tier C — general-news discovery
 Major international/local publishers can contribute high-quality WTF stories even without a dedicated odd-news desk. These should enter through verified topic/search feeds and still pass Scout + verification.
@@ -87,3 +88,9 @@ Source breadth improves discovery. Editorial diversity determines whether the ga
 - ABC Australia: do **not** enable via RSS. ABC's current help page states its RSS feeds are no longer updated. It remains a useful editorial/source-discovery target through a future compliant non-RSS adapter, not through stale feeds.
 - Guinness World Records: valuable editorial target, but no current official RSS endpoint was verified in this pass; remains disabled rather than guessing a feed URL.
 - Euronews Unusual: valuable editorial target, but a dedicated current machine-readable Unusual feed was not verified in this pass; remains disabled.
+
+
+- New Atlas: official RSS directory verified on 2026-09-21. Science, Technology and Transport feeds enabled. Its Science feed is currently served on the publisher-linked Refractor domain listed by New Atlas itself.
+- Smithsonian Magazine: official RSS directory verified, but not enabled in this commit pending a tighter category selection and ingestion check; remains a high-value candidate for history/science oddities.
+- ScienceAlert: strong science discovery source, but no official RSS endpoint was verified in this pass; not enabled.
+- Oddity Central: extremely high raw WTF yield, but secondary-source quality and sensitive/crime-heavy stories mean it should not be trusted as sole evidence. Keep as a future discovery-only adapter with mandatory independent verification rather than promoting it directly to default RSS.
