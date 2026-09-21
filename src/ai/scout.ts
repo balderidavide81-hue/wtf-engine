@@ -1,8 +1,29 @@
 import OpenAI from "openai";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 
+export interface AiUsageDiagnostics {
+  model: string;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  pricing: {
+    inputPerMillionUsd: number;
+    cachedInputPerMillionUsd: number;
+    outputPerMillionUsd: number;
+    source: string;
+  };
+}
+
+export interface ScoutBatch {
+  results: ScoutResult[];
+  usage: AiUsageDiagnostics;
+}
+
 export interface Scout {
   classify(candidates: ArticleCandidate[]): Promise<ScoutResult[]>;
+  classifyDetailed(candidates: ArticleCandidate[]): Promise<ScoutBatch>;
 }
 
 const instructions = `
@@ -62,10 +83,7 @@ const resultSchema = {
         properties: {
           articleId: { type: "string" },
           decision: { type: "string", enum: ["KEEP", "MAYBE", "REJECT"] },
-          modes: {
-            type: "array",
-            items: { type: "string", enum: ["WTF", "PREDICT", "STORY"] }
-          },
+          modes: { type: "array", items: { type: "string", enum: ["WTF", "PREDICT", "STORY"] } },
           scores: scoreSchema,
           reason: { type: "string" },
           evidenceStatus: { type: "string", enum: ["SUPPORTED", "UNCERTAIN", "UNSUPPORTED"] }
@@ -90,6 +108,37 @@ function compactCandidate(candidate: ArticleCandidate) {
   };
 }
 
+const LUNA_PRICING = {
+  inputPerMillionUsd: 0.20,
+  cachedInputPerMillionUsd: 0.02,
+  outputPerMillionUsd: 1.20,
+  source: "OpenAI GPT-5.6 Luna standard pricing, 2026-09-21"
+} as const;
+
+function usageDiagnostics(response: OpenAI.Responses.Response, model: string): AiUsageDiagnostics {
+  const usage = response.usage;
+  const inputTokens = usage?.input_tokens ?? 0;
+  const cachedInputTokens = usage?.input_tokens_details?.cached_tokens ?? 0;
+  const outputTokens = usage?.output_tokens ?? 0;
+  const totalTokens = usage?.total_tokens ?? inputTokens + outputTokens;
+  const uncachedInputTokens = Math.max(0, inputTokens - cachedInputTokens);
+  const estimatedCostUsd =
+    (uncachedInputTokens * LUNA_PRICING.inputPerMillionUsd +
+      cachedInputTokens * LUNA_PRICING.cachedInputPerMillionUsd +
+      outputTokens * LUNA_PRICING.outputPerMillionUsd) /
+    1_000_000;
+
+  return {
+    model,
+    inputTokens,
+    cachedInputTokens,
+    outputTokens,
+    totalTokens,
+    estimatedCostUsd,
+    pricing: LUNA_PRICING
+  };
+}
+
 export class OpenAIScout implements Scout {
   private readonly client: OpenAI;
 
@@ -99,23 +148,31 @@ export class OpenAIScout implements Scout {
   }
 
   async classify(candidates: ArticleCandidate[]): Promise<ScoutResult[]> {
-    if (candidates.length === 0) return [];
+    return (await this.classifyDetailed(candidates)).results;
+  }
+
+  async classifyDetailed(candidates: ArticleCandidate[]): Promise<ScoutBatch> {
+    const model = process.env.OPENAI_SCOUT_MODEL ?? "gpt-5.6-luna";
+    if (candidates.length === 0) {
+      return {
+        results: [],
+        usage: {
+          model, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, totalTokens: 0,
+          estimatedCostUsd: 0, pricing: LUNA_PRICING
+        }
+      };
+    }
 
     const response = await this.client.responses.create({
-      model: process.env.OPENAI_SCOUT_MODEL ?? "gpt-5.6-luna",
+      model,
       instructions,
       input: JSON.stringify(candidates.map(compactCandidate)),
       text: {
-        format: {
-          type: "json_schema",
-          name: "wtf_scout_batch",
-          strict: true,
-          schema: resultSchema
-        }
+        format: { type: "json_schema", name: "wtf_scout_batch", strict: true, schema: resultSchema }
       }
     });
 
     const parsed = JSON.parse(response.output_text) as { results: ScoutResult[] };
-    return parsed.results;
+    return { results: parsed.results, usage: usageDiagnostics(response, model) };
   }
 }

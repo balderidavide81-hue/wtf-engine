@@ -6,13 +6,51 @@ const DEFAULT_SOURCES: RssSourceConfig[] = [
     url: "https://rss.upi.com/news/odd_news.rss",
     language: "en",
     country: "US"
+  },
+  {
+    name: "Phys.org Plants & Animals",
+    url: "https://phys.org/rss-feed/breaking/biology-news/plants-animals/",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "Phys.org Archaeology",
+    url: "https://phys.org/rss-feed/breaking/science-news/archaeology-fossils/",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "Phys.org Space",
+    url: "https://phys.org/rss-feed/breaking/space-news/",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "New Atlas Science",
+    url: "https://refractor.io/science/index.rss",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "New Atlas Technology",
+    url: "https://newatlas.com/technology/index.rss",
+    language: "en",
+    country: "GLOBAL"
+  },
+  {
+    name: "New Atlas Transport",
+    url: "https://newatlas.com/transport/index.rss",
+    language: "en",
+    country: "GLOBAL"
   }
 ];
 
 /**
- * Built-in sources are intentionally conservative: only verified machine-readable
- * feeds are enabled by default. WTF_RSS_SOURCES can extend the registry without
- * a code deploy.
+ * Source portfolio policy:
+ * - built-ins must be verified machine-readable feeds before they are enabled here;
+ * - WTF_RSS_SOURCES extends the portfolio without a code deploy;
+ * - source discovery candidates live in docs/SOURCE_PORTFOLIO.md and are promoted
+ *   only after feed availability, freshness and terms are checked.
  */
 export function sourcesFromEnv(): RssSourceConfig[] {
   const raw = process.env.WTF_RSS_SOURCES;

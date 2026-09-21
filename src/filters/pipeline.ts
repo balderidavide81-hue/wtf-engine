@@ -19,25 +19,71 @@ function canonicalUrl(raw: string): string {
   }
 }
 
-function titleKey(title: string): string {
-  return title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+function titleWords(title: string): Set<string> {
+  return new Set(
+    title.toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .split(/\s+/)
+      .filter(word => word.length >= 3)
+  );
 }
 
-export function prefilter(candidates: ArticleCandidate[]): ArticleCandidate[] {
+function titleKey(title: string): string {
+  return [...titleWords(title)].join(" ");
+}
+
+function titleSimilarity(a: string, b: string): number {
+  const left = titleWords(a);
+  const right = titleWords(b);
+  if (!left.size || !right.size) return 0;
+  let intersection = 0;
+  for (const word of left) if (right.has(word)) intersection++;
+  return intersection / Math.min(left.size, right.size);
+}
+
+export interface PrefilterReport {
+  candidates: ArticleCandidate[];
+  dropped: {
+    insufficient: number;
+    sensitive: number;
+    duplicateUrlOrTitle: number;
+    nearDuplicateTitle: number;
+  };
+}
+
+export function prefilterDetailed(candidates: ArticleCandidate[]): PrefilterReport {
   const seenUrls = new Set<string>();
   const seenTitles = new Set<string>();
+  const acceptedTitles: string[] = [];
+  const dropped = { insufficient: 0, sensitive: 0, duplicateUrlOrTitle: 0, nearDuplicateTitle: 0 };
+  const accepted: ArticleCandidate[] = [];
 
-  return candidates.filter(candidate => {
-    if (!hasMinimumContent(candidate)) return false;
+  for (const candidate of candidates) {
+    if (!hasMinimumContent(candidate)) { dropped.insufficient++; continue; }
     const material = `${candidate.title} ${candidate.summary ?? ""}`;
-    if (sensitive.some(rule => rule.test(material))) return false;
+    if (sensitive.some(rule => rule.test(material))) { dropped.sensitive++; continue; }
 
     const url = canonicalUrl(candidate.sourceUrl);
     const title = titleKey(candidate.title);
-    if (seenUrls.has(url) || seenTitles.has(title)) return false;
+    if (seenUrls.has(url) || seenTitles.has(title)) { dropped.duplicateUrlOrTitle++; continue; }
+
+    // Cross-publisher syndication often changes only a few words. This cheap pass
+    // avoids paying Scout twice for substantially the same headline.
+    if (acceptedTitles.some(previous => titleSimilarity(previous, candidate.title) >= 0.82)) {
+      dropped.nearDuplicateTitle++;
+      continue;
+    }
 
     seenUrls.add(url);
     seenTitles.add(title);
-    return true;
-  });
+    acceptedTitles.push(candidate.title);
+    accepted.push(candidate);
+  }
+
+  return { candidates: accepted, dropped };
+}
+
+export function prefilter(candidates: ArticleCandidate[]): ArticleCandidate[] {
+  return prefilterDetailed(candidates).candidates;
 }

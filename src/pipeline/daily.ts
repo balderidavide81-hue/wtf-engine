@@ -1,6 +1,8 @@
-import { OpenAIScout } from "../ai/scout.js";
+import { OpenAIScout, type AiUsageDiagnostics } from "../ai/scout.js";
+import { OpenAIEditor, type GameCardDraft } from "../ai/editor.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
+import { diversifyQueue } from "./diversity.js";
 
 const DEFAULT_SCOUT_LIMIT = 30;
 
@@ -10,21 +12,54 @@ function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
   return bt - at;
 }
 
+function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): ArticleCandidate[] {
+  const sorted = [...candidates].sort(newestFirst);
+  const selected: ArticleCandidate[] = [];
+  const perSource = new Map<string, number>();
+  const sourceCap = Math.max(2, Math.ceil(limit / 4));
+
+  // First pass guarantees breadth when several feeds have fresh material.
+  for (const candidate of sorted) {
+    if (selected.length >= limit) break;
+    const count = perSource.get(candidate.sourceName) ?? 0;
+    if (count >= sourceCap) continue;
+    selected.push(candidate);
+    perSource.set(candidate.sourceName, count + 1);
+  }
+
+  // Fill unused capacity without throwing away good material from prolific sources.
+  if (selected.length < limit) {
+    const used = new Set(selected.map(candidate => candidate.id));
+    for (const candidate of sorted) {
+      if (selected.length >= limit) break;
+      if (used.has(candidate.id)) continue;
+      selected.push(candidate);
+    }
+  }
+  return selected;
+}
+
 export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
   scouted: number;
+  editorEligible: number;
+  edited: number;
+  ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
+  cards: GameCardDraft[];
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
 }
 
 export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<DailyQueueReport> {
   const collection = await collect();
-  const candidates = [...collection.candidates].sort(newestFirst).slice(0, Math.max(1, Math.min(limit, 30)));
+  const scoutLimit = Math.max(1, Math.min(limit, 30));
+  const candidates = selectScoutCandidates(collection.candidates, scoutLimit);
 
   const scout = new OpenAIScout();
-  const results = await scout.classify(candidates);
+  const batch = await scout.classifyDetailed(candidates);
+  const results = batch.results;
   const byId = new Map(candidates.map(candidate => [candidate.id, candidate]));
 
-  const queue = results
+  const rankedQueue = results
     .map(result => ({ candidate: byId.get(result.articleId), scout: result }))
     .filter((item): item is { candidate: ArticleCandidate; scout: ScoutResult } => Boolean(item.candidate))
     .sort((a, b) => {
@@ -36,6 +71,19 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
       return bScore - aScore;
     });
 
+  const queue = diversifyQueue(rankedQueue);
+  const editor = new OpenAIEditor();
+  const editorEligible = queue.filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED").length;
+  const edited = await editor.draft(queue);
+  const totalEstimatedCostUsd = batch.usage.estimatedCostUsd + edited.usage.estimatedCostUsd;
   const { candidates: _ignored, ...collectionSummary } = collection;
-  return { collection: collectionSummary, scouted: candidates.length, queue };
+  return {
+    collection: collectionSummary,
+    scouted: candidates.length,
+    editorEligible,
+    edited: edited.cards.length,
+    ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd },
+    cards: edited.cards,
+    queue
+  };
 }
