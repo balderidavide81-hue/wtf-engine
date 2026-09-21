@@ -64,8 +64,7 @@ const resultSchema = {
           decision: { type: "string", enum: ["KEEP", "MAYBE", "REJECT"] },
           modes: {
             type: "array",
-            items: { type: "string", enum: ["WTF", "PREDICT", "STORY"] },
-            uniqueItems: true
+            items: { type: "string", enum: ["WTF", "PREDICT", "STORY"] }
           },
           scores: scoreSchema,
           reason: { type: "string" },
