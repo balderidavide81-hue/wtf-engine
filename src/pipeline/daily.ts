@@ -1,4 +1,4 @@
-import { OpenAIScout } from "../ai/scout.js";
+import { OpenAIScout, type AiUsageDiagnostics } from "../ai/scout.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
 
@@ -13,6 +13,7 @@ function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
 export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
   scouted: number;
+  ai: { scout: AiUsageDiagnostics };
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
 }
 
@@ -21,7 +22,8 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
   const candidates = [...collection.candidates].sort(newestFirst).slice(0, Math.max(1, Math.min(limit, 30)));
 
   const scout = new OpenAIScout();
-  const results = await scout.classify(candidates);
+  const batch = await scout.classifyDetailed(candidates);
+  const results = batch.results;
   const byId = new Map(candidates.map(candidate => [candidate.id, candidate]));
 
   const queue = results
@@ -37,5 +39,5 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
     });
 
   const { candidates: _ignored, ...collectionSummary } = collection;
-  return { collection: collectionSummary, scouted: candidates.length, queue };
+  return { collection: collectionSummary, scouted: candidates.length, ai: { scout: batch.usage }, queue };
 }
