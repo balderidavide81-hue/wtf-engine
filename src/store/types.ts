@@ -43,3 +43,19 @@ export interface EditorialCardRecord {
 export interface EditorialEditionRecord extends DailyEditionRecord {
   cards: EditorialCardRecord[];
 }
+
+export interface PublicGameCardRecord {
+  id: string;
+  mode: "WTF" | "PREDICT" | "STORY";
+  hook: string;
+  question: string;
+  options: string[];
+  reveal: string | null;
+  sourceName: string;
+  sourceUrl: string;
+}
+
+export interface PublicEditionRecord {
+  editionDate: string;
+  cards: PublicGameCardRecord[];
+}
