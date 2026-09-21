@@ -1,6 +1,5 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
-import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
-import type { GameCardDraft } from "../ai/editor.js";
+import type { ArticleCandidate } from "../domain/types.js";
 import type { ContentStore } from "./content-store.js";
 import type { DailyEditionRecord, PersistedPipelineRun } from "./types.js";
 
