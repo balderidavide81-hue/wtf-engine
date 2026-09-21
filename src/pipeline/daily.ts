@@ -83,6 +83,9 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
   }
   const returnedScoutIds = new Set(results.map(result => result.articleId));
   const scoutOmittedArticleIds = candidates.map(candidate => candidate.id).filter(id => !returnedScoutIds.has(id));
+  if (scoutOmittedArticleIds.length > 0) {
+    throw new Error(`Scout omitted submitted article IDs: ${scoutOmittedArticleIds.join(", ")}`);
+  }
   const byId = new Map(candidates.map(candidate => [candidate.id, candidate]));
 
   const rankedQueue = results
@@ -114,6 +117,18 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
     .filter(id => !submittedIds.has(id));
   if (unexpectedEditorIds.length > 0) {
     throw new Error(`Editor returned article IDs that were not submitted: ${unexpectedEditorIds.join(", ")}`);
+  }
+  const editorInputById = new Map(editorSubmittedItems.map(item => [item.candidate.id, item]));
+  const unsupportedEditorModes = edited.cards.filter(card => {
+    const input = editorInputById.get(card.articleId);
+    return !input || !input.scout.modes.includes(card.mode);
+  });
+  if (unsupportedEditorModes.length > 0) {
+    throw new Error(
+      `Editor selected modes not supported by Scout: ${unsupportedEditorModes
+        .map(card => `${card.articleId}:${card.mode}`)
+        .join(", ")}`
+    );
   }
   const totalEstimatedCostUsd = batch.usage.estimatedCostUsd + edited.usage.estimatedCostUsd;
   const { candidates: _ignored, ...collectionSummary } = collection;
