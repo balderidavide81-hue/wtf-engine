@@ -53,7 +53,7 @@ export interface DailyQueueReport {
   ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
   cards: GameCardDraft[];
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
-  persistence?: { runId: string; editionId: string; editionDate: string; newCardIds: string[]; editionCardIds: string[] };
+  persistence?: { runId: string; editionId?: string; editionDate: string; newCardIds: string[]; editionCardIds: string[] };
 }
 
 export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: ContentStore): Promise<DailyQueueReport> {
@@ -120,8 +120,25 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
       ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd }
     });
     const editionDate = editionDateFor();
-    const edition = await store.appendDraftEdition(editionDate, saved.cardIds);
-    persistence = { runId: saved.runId, editionId: edition.id, editionDate, newCardIds: saved.cardIds, editionCardIds: edition.cardIds };
+    if (saved.cardIds.length > 0) {
+      const edition = await store.appendDraftEdition(editionDate, saved.cardIds);
+      persistence = {
+        runId: saved.runId,
+        editionId: edition.id,
+        editionDate,
+        newCardIds: saved.cardIds,
+        editionCardIds: edition.cardIds
+      };
+    } else {
+      const edition = await store.getEdition(editionDate);
+      persistence = {
+        runId: saved.runId,
+        ...(edition ? { editionId: edition.id } : {}),
+        editionDate,
+        newCardIds: [],
+        editionCardIds: edition?.cardIds ?? []
+      };
+    }
   }
 
   return {
