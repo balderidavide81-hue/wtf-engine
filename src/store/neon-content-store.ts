@@ -224,7 +224,7 @@ export class NeonContentStore implements ContentStore {
   async getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null> {
     const result = await this.pool.query(
       `select de.edition_date::text, gc.id, gc.mode, gc.hook, gc.question, gc.options,
-              gc.reveal, gc.lifecycle_status,
+              gc.resolution_rule, gc.correct_option_index, gc.reveal, gc.lifecycle_status, gc.resolution,
               a.source_name, a.source_url
          from daily_editions de
          join daily_edition_cards dec on dec.edition_id=de.id
@@ -232,7 +232,7 @@ export class NeonContentStore implements ContentStore {
          join articles a on a.id=gc.article_id
         where de.edition_date=$1
           and de.status='published'
-          and gc.lifecycle_status in ('published','open','resolved')
+          and gc.lifecycle_status in ('published','open','resolved','void')
         order by dec.position`,
       [editionDate]
     );
@@ -240,13 +240,19 @@ export class NeonContentStore implements ContentStore {
     return {
       editionDate: String(result.rows[0].edition_date),
       cards: result.rows.map(row => {
+        const resolved = row.lifecycle_status === "resolved";
+        const voided = row.lifecycle_status === "void";
         return {
           id: String(row.id),
           mode: row.mode,
+          status: row.lifecycle_status,
           hook: row.hook,
           question: row.question,
           options: row.options,
-          reveal: row.lifecycle_status === "resolved" ? row.reveal : null,
+          resolutionRule: row.mode === "PREDICT" ? row.resolution_rule : null,
+          resolvedOptionIndex: resolved ? Number(row.correct_option_index) : null,
+          reveal: resolved ? row.reveal : null,
+          voidReason: voided && row.resolution?.reason ? String(row.resolution.reason) : null,
           sourceName: row.source_name,
           sourceUrl: row.source_url
         };
