@@ -58,9 +58,10 @@ export class NeonContentStore implements ContentStore {
       `select distinct a.external_id, a.canonical_url
          from articles a
          join scout_results s on s.article_id = a.id
-        where a.external_id = any($1::text[])
-           or a.canonical_url = any($2::text[])`,
-      [externalIds, canonicalUrls]
+        where (a.external_id = any($1::text[])
+           or a.canonical_url = any($2::text[]))
+          and s.prompt_version = $3`,
+      [externalIds, canonicalUrls, SCOUT_PROMPT_VERSION]
     );
     const processedExternalIds = new Set(result.rows.map(row => String(row.external_id)));
     const processedCanonicalUrls = new Set(result.rows.map(row => String(row.canonical_url)));
@@ -295,29 +296,44 @@ export class NeonContentStore implements ContentStore {
     cardId: string,
     status: Extract<CardLifecycleStatus, "reviewed" | "rejected">
   ): Promise<void> {
-    const result = await this.pool.query(
-      `update game_cards gc
-          set lifecycle_status=$3, updated_at=now()
-        where gc.id=$2
-          and gc.lifecycle_status in ('draft','reviewed','rejected')
-          and exists (
-            select 1
-              from daily_edition_cards dec
-              join daily_editions de on de.id=dec.edition_id
-             where dec.card_id=gc.id
-               and de.edition_date=$1
-               and de.status='draft'
-          )
-          and not exists (
-            select 1
-              from daily_edition_cards dec
-              join daily_editions de on de.id=dec.edition_id
-             where dec.card_id=gc.id and de.status <> 'draft'
-          )
-        returning id`,
-      [editionDate, cardId, status]
-    );
-    if (result.rowCount === 0) throw new Error(`Card ${cardId} cannot be moved to ${status}`);
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const edition = await client.query(
+        "select id, status from daily_editions where edition_date=$1 for update",
+        [editionDate]
+      );
+      if (edition.rowCount === 0) throw new Error(`Edition ${editionDate} not found`);
+      if (edition.rows[0].status !== "draft") {
+        throw new Error(`Edition ${editionDate} is ${edition.rows[0].status} and card review is frozen`);
+      }
+      const editionId = String(edition.rows[0].id);
+      const result = await client.query(
+        `update game_cards gc
+            set lifecycle_status=$3, updated_at=now()
+          where gc.id=$2
+            and gc.lifecycle_status in ('draft','reviewed','rejected')
+            and exists (
+              select 1 from daily_edition_cards dec
+               where dec.card_id=gc.id and dec.edition_id=$1
+            )
+            and not exists (
+              select 1
+                from daily_edition_cards dec
+                join daily_editions de on de.id=dec.edition_id
+               where dec.card_id=gc.id and de.status <> 'draft'
+            )
+          returning id`,
+        [editionId, cardId, status]
+      );
+      if (result.rowCount === 0) throw new Error(`Card ${cardId} cannot be moved to ${status}`);
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async setEditionStatus(
