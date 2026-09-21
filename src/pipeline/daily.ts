@@ -57,6 +57,14 @@ export interface DailyQueueReport {
 }
 
 export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: ContentStore): Promise<DailyQueueReport> {
+  const editionDate = store ? editionDateFor() : undefined;
+  if (store && editionDate) {
+    const existingEdition = await store.getEdition(editionDate);
+    if (existingEdition && existingEdition.status !== "draft") {
+      throw new Error(`Edition ${editionDate} is ${existingEdition.status}; generation is closed`);
+    }
+  }
+
   const collection = await collect();
   const scoutLimit = Math.max(1, Math.min(limit, SCOUT_BATCH_LIMIT));
   const processedIds = store
@@ -119,7 +127,7 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
       cards: edited.cards,
       ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd }
     });
-    const editionDate = editionDateFor();
+    if (!editionDate) throw new Error("Edition date was not initialized for persisted generation");
     if (saved.cardIds.length > 0) {
       const edition = await store.appendDraftEdition(editionDate, saved.cardIds);
       persistence = {
