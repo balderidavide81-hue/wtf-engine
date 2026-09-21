@@ -56,7 +56,7 @@ const schema = {
   required: ["cards"]
 } as const;
 
-const DEFAULT_EDITOR_LIMIT = 12;
+export const EDITOR_BATCH_LIMIT = 12;
 
 function validateCardDraft(card: GameCardDraft): void {
   if (card.options.length < 2) throw new Error(`Editor card ${card.articleId} must have at least two options`);
@@ -93,10 +93,10 @@ function compactEditorItem(item: { candidate: ArticleCandidate; scout: ScoutResu
 export class OpenAIEditor {
   constructor(private readonly apiKey = process.env.OPENAI_API_KEY) {}
 
-  async draft(items: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>, limit = DEFAULT_EDITOR_LIMIT): Promise<EditorBatch> {
+  async draft(items: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>, limit = EDITOR_BATCH_LIMIT): Promise<EditorBatch> {
     const eligible = items
       .filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED")
-      .slice(0, Math.max(1, Math.min(limit, DEFAULT_EDITOR_LIMIT)));
+      .slice(0, Math.max(1, Math.min(limit, EDITOR_BATCH_LIMIT)));
     if (eligible.length === 0) {
       return { cards: [], usage: emptyUsage(process.env.OPENAI_EDITOR_MODEL ?? "gpt-5.6-luna") };
     }
