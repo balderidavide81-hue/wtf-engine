@@ -140,3 +140,16 @@ Post-apply verification on the production branch confirmed:
 - generation lease table and constraints.
 
 The temporary migration branch was deleted automatically after promotion.
+
+
+## Final post-hardening validation
+
+After the last application-code hardening pass, a second one-shot validation ran on commit `cf2ecf8330a6a889f62a0e31f6d047b0f0bd0e1f` (GitHub Actions run `35607388399`) and completed successfully.
+
+This final gate re-ran:
+- Node 22 dependency installation;
+- `npm run typecheck`;
+- PostgreSQL 18 migration application;
+- idempotent migration re-application.
+
+The temporary workflow was removed immediately after success to avoid ongoing GitHub Actions consumption.
