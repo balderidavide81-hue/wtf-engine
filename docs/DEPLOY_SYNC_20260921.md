@@ -1,6 +1,6 @@
 # Deployment sync — 2026-09-21
 
-This no-op deployment marker intentionally triggers a fresh Vercel production deployment from the current `main` HEAD.
+This deployment marker intentionally triggers a fresh Vercel production deployment from the current `main` HEAD.
 
 Expected serverless functions after deployment:
 
@@ -9,4 +9,4 @@ Expected serverless functions after deployment:
 - `/api/scout`
 - `/api/daily`
 
-The previous production deployment was created from an intermediate commit while the multi-file Daily Queue block was still being committed.
+The duplicate Vercel project `wtf-engine-bwpo` has been removed. This marker triggers a single deployment of the corrected Scout schema, after removing the unsupported `uniqueItems` keyword.
