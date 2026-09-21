@@ -39,7 +39,7 @@ create table if not exists pipeline_runs (
   prompt_versions jsonb not null default '{}'::jsonb,
   model_versions jsonb not null default '{}'::jsonb,
   diagnostics jsonb not null default '{}'::jsonb,
-  estimated_cost_usd numeric(12,8) not null default 0,
+  estimated_cost_usd numeric(12,8) not null default 0 check (estimated_cost_usd >= 0),
   started_at timestamptz not null default now(),
   completed_at timestamptz
 );
@@ -78,6 +78,21 @@ create table if not exists game_cards (
   lifecycle_status text not null default 'draft'
     check (lifecycle_status in ('draft','reviewed','published','open','resolved','void','rejected')),
   resolution jsonb,
+  constraint game_cards_options_array_ck
+    check (jsonb_typeof(options) = 'array' and jsonb_array_length(options) >= 2),
+  constraint game_cards_answer_index_ck
+    check (
+      correct_option_index is null
+      or (correct_option_index >= 0 and correct_option_index < jsonb_array_length(options))
+    ),
+  constraint game_cards_wtf_answer_ck
+    check (mode <> 'WTF' or correct_option_index is not null),
+  constraint game_cards_predict_rule_ck
+    check (mode <> 'PREDICT' or (resolution_rule is not null and btrim(resolution_rule) <> '')),
+  constraint game_cards_predict_unresolved_ck
+    check (mode <> 'PREDICT' or lifecycle_status = 'resolved' or correct_option_index is null),
+  constraint game_cards_predict_resolved_answer_ck
+    check (mode <> 'PREDICT' or lifecycle_status <> 'resolved' or correct_option_index is not null),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
