@@ -4,7 +4,7 @@ import type { ContentStore } from "./content-store.js";
 import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
 
 const SCOUT_PROMPT_VERSION = "scout/v0.1";
-const EDITOR_PROMPT_VERSION = "editor/v0.1";
+const EDITOR_PROMPT_VERSION = "editor/inline-v0.1";
 
 function requireDatabaseUrl(): string {
   const value = process.env.DATABASE_URL;
@@ -67,6 +67,10 @@ export class NeonContentStore implements ContentStore {
           `insert into scout_results
              (article_id, run_id, prompt_version, model, decision, modes, scores, reason, evidence_status, raw_output)
            values ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10::jsonb)
+           on conflict (article_id, prompt_version) do update set
+             run_id=excluded.run_id, model=excluded.model, decision=excluded.decision,
+             modes=excluded.modes, scores=excluded.scores, reason=excluded.reason,
+             evidence_status=excluded.evidence_status, raw_output=excluded.raw_output
            returning id`,
           [articleId, runId, SCOUT_PROMPT_VERSION, run.ai.scout.model, scout.decision,
            JSON.stringify(scout.modes), JSON.stringify(scout.scores), scout.reason,
@@ -84,6 +88,11 @@ export class NeonContentStore implements ContentStore {
              (article_id, scout_result_id, run_id, prompt_version, model, mode, hook, question,
               options, correct_option_index, reveal, resolution_rule)
            values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12)
+           on conflict (article_id, prompt_version) do update set
+             scout_result_id=excluded.scout_result_id, run_id=excluded.run_id, model=excluded.model,
+             mode=excluded.mode, hook=excluded.hook, question=excluded.question,
+             options=excluded.options, correct_option_index=excluded.correct_option_index,
+             reveal=excluded.reveal, resolution_rule=excluded.resolution_rule, updated_at=now()
            returning id`,
           [articleId, scoutIds.get(card.articleId) ?? null, runId, EDITOR_PROMPT_VERSION,
            run.ai.editor.model, card.mode, card.hook, card.question, JSON.stringify(card.options),
