@@ -128,3 +128,15 @@ The gate performed:
 - generation-lease SQL smoke test.
 
 The temporary CI workflow was removed immediately after the successful run to avoid consuming GitHub Actions quota on later feature-branch commits.
+
+
+## Neon production migration
+
+The v0.5 migration was prepared and validated on temporary Neon branch `br-jolly-lab-b1803g1k`, then explicitly approved and applied to project `autumn-violet-57425012` / branch `main` (`br-withered-rain-b1ue18f6`) on 2026-09-21.
+
+Post-apply verification on the production branch confirmed:
+- all 8 expected v0.5 tables;
+- both prompt-provenance unique indexes;
+- generation lease table and constraints.
+
+The temporary migration branch was deleted automatically after promotion.
