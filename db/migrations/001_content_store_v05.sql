@@ -59,6 +59,7 @@ create table if not exists scout_results (
   created_at timestamptz not null default now()
 );
 create index if not exists scout_results_article_created_idx on scout_results(article_id, created_at desc);
+create unique index if not exists scout_results_article_prompt_uq on scout_results(article_id, prompt_version);
 
 create table if not exists game_cards (
   id uuid primary key default gen_random_uuid(),
@@ -81,6 +82,7 @@ create table if not exists game_cards (
   updated_at timestamptz not null default now()
 );
 create index if not exists game_cards_status_created_idx on game_cards(lifecycle_status, created_at desc);
+create unique index if not exists game_cards_article_prompt_uq on game_cards(article_id, prompt_version);
 
 create table if not exists daily_editions (
   id uuid primary key default gen_random_uuid(),
