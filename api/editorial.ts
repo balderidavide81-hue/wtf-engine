@@ -2,10 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
 import { editionDateFromQuery } from "../src/time/edition-date.js";
 import { isEditorialAuthorized } from "../src/auth/editorial.js";
-
-function store(): NeonContentStore {
-  return new NeonContentStore();
-}
+import { DAILY_GENERATION_LEASE_KEY, DAILY_GENERATION_LEASE_TTL_SECONDS } from "../src/store/lease-constants.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
@@ -14,9 +11,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const date = editionDateFromQuery(req.query.date);
   if (!date) return res.status(400).json({ error: "invalid_edition_date" });
+  if (!process.env.DATABASE_URL) return res.status(503).json({ error: "persistence_not_configured" });
+
   try {
+    const contentStore = new NeonContentStore();
     if (req.method === "GET") {
-      const edition = await store().getEditorialEdition(date);
+      const edition = await contentStore.getEditorialEdition(date);
       return edition ? res.status(200).json(edition) : res.status(404).json({ error: "edition_not_found" });
     }
 
@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const action = req.body?.action;
       if (action === "review_card" || action === "reject_card") {
         if (typeof req.body?.cardId !== "string") return res.status(400).json({ error: "card_id_required" });
-        await store().setCardLifecycle(date, req.body.cardId, action === "review_card" ? "reviewed" : "rejected");
+        await contentStore.setCardLifecycle(date, req.body.cardId, action === "review_card" ? "reviewed" : "rejected");
         return res.status(200).json({ ok: true });
       }
       if (action === "resolve_prediction") {
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (typeof req.body?.evidenceNote !== "string" || !req.body.evidenceNote.trim()) {
           return res.status(400).json({ error: "evidence_note_required" });
         }
-        await store().resolvePrediction(req.body.cardId, {
+        await contentStore.resolvePrediction(req.body.cardId, {
           outcomeOptionIndex: req.body.outcomeOptionIndex,
           evidenceUrl: req.body.evidenceUrl.trim(),
           evidenceNote: req.body.evidenceNote.trim()
@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.body?.evidenceUrl !== undefined && typeof req.body.evidenceUrl !== "string") {
           return res.status(400).json({ error: "invalid_evidence_url" });
         }
-        await store().voidPrediction(req.body.cardId, {
+        await contentStore.voidPrediction(req.body.cardId, {
           reason: req.body.reason.trim(),
           ...(typeof req.body.evidenceUrl === "string" && req.body.evidenceUrl.trim()
             ? { evidenceUrl: req.body.evidenceUrl.trim() }
@@ -62,8 +62,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ ok: true });
       }
       if (action === "review_edition" || action === "publish_edition") {
-        const edition = await store().setEditionStatus(date, action === "review_edition" ? "reviewed" : "published");
-        return res.status(200).json(edition);
+        const leaseOwner = await contentStore.tryAcquireGenerationLease(
+          DAILY_GENERATION_LEASE_KEY,
+          DAILY_GENERATION_LEASE_TTL_SECONDS
+        );
+        if (!leaseOwner) return res.status(409).json({ error: "generation_in_progress" });
+        try {
+          const edition = await contentStore.setEditionStatus(
+            date,
+            action === "review_edition" ? "reviewed" : "published"
+          );
+          return res.status(200).json(edition);
+        } finally {
+          try {
+            await contentStore.releaseGenerationLease(DAILY_GENERATION_LEASE_KEY, leaseOwner);
+          } catch (releaseError) {
+            console.error("editorial_lease_release_failed", releaseError);
+          }
+        }
       }
       return res.status(400).json({ error: "unsupported_action" });
     }
