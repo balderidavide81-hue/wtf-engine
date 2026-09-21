@@ -286,7 +286,7 @@ export class NeonContentStore implements ContentStore {
     try {
       await client.query("begin");
       const locked = await client.query(
-        "select id, status from daily_editions where edition_date=$1 for update",
+        "select id, edition_date::text, status from daily_editions where edition_date=$1 for update",
         [editionDate]
       );
       if (locked.rowCount === 0) throw new Error(`Edition ${editionDate} not found`);
@@ -294,10 +294,17 @@ export class NeonContentStore implements ContentStore {
       const current = String(locked.rows[0].status);
 
       if (current === status) {
+        const cards = await client.query(
+          "select card_id from daily_edition_cards where edition_id=$1 order by position",
+          [editionId]
+        );
         await client.query("commit");
-        const edition = await this.getEdition(editionDate);
-        if (!edition) throw new Error(`Edition ${editionDate} disappeared after idempotent transition`);
-        return edition;
+        return {
+          id: editionId,
+          editionDate: String(locked.rows[0].edition_date),
+          status: current as EditionStatus,
+          cardIds: cards.rows.map(row => String(row.card_id))
+        };
       }
 
       if (status === "reviewed" && current !== "draft") {
@@ -340,10 +347,17 @@ export class NeonContentStore implements ContentStore {
           where id=$1`,
         [editionId, status]
       );
+      const cards = await client.query(
+        "select card_id from daily_edition_cards where edition_id=$1 order by position",
+        [editionId]
+      );
       await client.query("commit");
-      const edition = await this.getEdition(editionDate);
-      if (!edition) throw new Error(`Edition ${editionDate} disappeared after update`);
-      return edition;
+      return {
+        id: editionId,
+        editionDate: String(locked.rows[0].edition_date),
+        status,
+        cardIds: cards.rows.map(row => String(row.card_id))
+      };
     } catch (error) {
       await client.query("rollback");
       throw error;
