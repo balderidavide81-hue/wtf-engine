@@ -51,7 +51,7 @@ export interface DailyQueueReport {
   ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
   cards: GameCardDraft[];
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
-  persistence?: { runId: string; editionId: string; editionDate: string; cardIds: string[] };
+  persistence?: { runId: string; editionId: string; editionDate: string; newCardIds: string[]; editionCardIds: string[] };
 }
 
 export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: ContentStore): Promise<DailyQueueReport> {
@@ -111,8 +111,8 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: Conte
       ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd }
     });
     const editionDate = new Date().toISOString().slice(0, 10);
-    const edition = await store.saveDraftEdition(editionDate, saved.cardIds);
-    persistence = { runId: saved.runId, editionId: edition.id, editionDate, cardIds: saved.cardIds };
+    const edition = await store.appendDraftEdition(editionDate, saved.cardIds);
+    persistence = { runId: saved.runId, editionId: edition.id, editionDate, newCardIds: saved.cardIds, editionCardIds: edition.cardIds };
   }
 
   return {
