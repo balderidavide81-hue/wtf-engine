@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
-import { editionDateFor } from "../src/time/edition-date.js";
+import { editionDateFromQuery } from "../src/time/edition-date.js";
 import { isEditorialAuthorized } from "../src/auth/editorial.js";
 
 function store(): NeonContentStore {
@@ -8,10 +8,12 @@ function store(): NeonContentStore {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Cache-Control", "no-store");
   if (!isEditorialAuthorized(req)) {
     return res.status(401).json({ error: "unauthorized" });
   }
-  const date = typeof req.query.date === "string" ? req.query.date : editionDateFor();
+  const date = editionDateFromQuery(req.query.date);
+  if (!date) return res.status(400).json({ error: "invalid_edition_date" });
   try {
     if (req.method === "GET") {
       const edition = await store().getEditorialEdition(date);
@@ -27,18 +29,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       if (action === "resolve_prediction") {
         if (typeof req.body?.cardId !== "string") return res.status(400).json({ error: "card_id_required" });
+        if (!Number.isInteger(req.body?.outcomeOptionIndex)) {
+          return res.status(400).json({ error: "outcome_option_index_required" });
+        }
+        if (typeof req.body?.evidenceUrl !== "string" || !req.body.evidenceUrl.trim()) {
+          return res.status(400).json({ error: "evidence_url_required" });
+        }
+        if (typeof req.body?.evidenceNote !== "string" || !req.body.evidenceNote.trim()) {
+          return res.status(400).json({ error: "evidence_note_required" });
+        }
         await store().resolvePrediction(req.body.cardId, {
-          outcomeOptionIndex: req.body?.outcomeOptionIndex,
-          evidenceUrl: req.body?.evidenceUrl,
-          evidenceNote: req.body?.evidenceNote
+          outcomeOptionIndex: req.body.outcomeOptionIndex,
+          evidenceUrl: req.body.evidenceUrl.trim(),
+          evidenceNote: req.body.evidenceNote.trim()
         });
         return res.status(200).json({ ok: true });
       }
       if (action === "void_prediction") {
         if (typeof req.body?.cardId !== "string") return res.status(400).json({ error: "card_id_required" });
+        if (typeof req.body?.reason !== "string" || !req.body.reason.trim()) {
+          return res.status(400).json({ error: "void_reason_required" });
+        }
+        if (req.body?.evidenceUrl !== undefined && typeof req.body.evidenceUrl !== "string") {
+          return res.status(400).json({ error: "invalid_evidence_url" });
+        }
         await store().voidPrediction(req.body.cardId, {
-          reason: req.body?.reason ?? "",
-          evidenceUrl: req.body?.evidenceUrl
+          reason: req.body.reason.trim(),
+          ...(typeof req.body.evidenceUrl === "string" && req.body.evidenceUrl.trim()
+            ? { evidenceUrl: req.body.evidenceUrl.trim() }
+            : {})
         });
         return res.status(200).json({ ok: true });
       }
