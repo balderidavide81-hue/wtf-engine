@@ -30,7 +30,7 @@ Do not apply this migration or deploy intermediate v0.5 work. Build the adapter 
 
 When `DATABASE_URL` is configured, `/api/daily` now uses the Neon store. Before Scout, the pipeline asks for external IDs that already have a persisted Scout result and removes them from the paid AI batch. New Scout/Editor output is then persisted and attached to the day's draft edition.
 
-Without `DATABASE_URL`, the endpoint preserves the existing non-persistent behavior. This allows source work to remain deploy-safe until the migration and environment are deliberately enabled.
+`/api/daily` now fails closed when `DATABASE_URL` is absent. Production generation therefore cannot intentionally incur Scout/Editor cost and then discard the output because persistence was misconfigured.
 
 The API report exposes `previouslyProcessed` and, when persistence is active, run/edition/card IDs for auditability.
 
@@ -54,7 +54,7 @@ Persistence diagnostics distinguish `newCardIds` from the complete `editionCardI
 
 An edition can move only `draft → reviewed → published`. Every non-rejected card must be individually reviewed before the edition enters review. Publishing promotes reviewed WTF/STORY cards to `published` and PREDICT cards to `open`. Published editions/cards cannot be silently edited by later generation or review calls.
 
-This endpoint is an internal workflow surface and must be protected by authentication before any public production exposure.
+This endpoint is an internal workflow surface protected by `EDITORIAL_API_TOKEN`.
 
 ## Security boundary and gameplay API
 
@@ -62,7 +62,7 @@ This endpoint is an internal workflow surface and must be protected by authentic
 
 `GET /api/gameplay-daily?date=YYYY-MM-DD` is intentionally read-only and public. It returns only a published edition and never exposes drafts, rejected cards, Scout diagnostics, AI costs, internal IDs for runs, or editorial actions.
 
-The public edition feed suppresses `reveal` for active cards. Only a resolved prediction can expose its reveal through this feed. WTF/STORY answer reveal should be delivered later through the gameplay answer flow rather than embedded in the initial edition payload.
+The public edition feed suppresses answer/reveal data for active cards. Resolved PREDICT cards expose their resolved option and reveal; voided PREDICT cards remain visible with a void reason so a future client can settle/refund them. PREDICT resolution rules are public before adjudication for transparency. WTF/STORY answer reveal should be delivered later through a gameplay answer flow rather than embedded in the initial edition payload.
 
 The gameplay response is cacheable at the edge for 60 seconds with stale-while-revalidate, keeping normal player reads independent from AI generation.
 
@@ -81,7 +81,7 @@ The paid generation endpoint `/api/daily` is no longer public: it requires `Auth
 
 Scout and Editor persistence now has database uniqueness per `(article_id, prompt_version)`, with conflict-safe writes. The inline Editor prompt is recorded explicitly as `editor/inline-v0.1` rather than implying a nonexistent external prompt file.
 
-The public surface remains only the read-only published gameplay endpoint. Migration/deploy remain deliberately unapplied during source audit.
+The public content surface remains the read-only published gameplay endpoint. Internal collection, Scout, generation and editorial routes all require server-side bearer authorization. Migration/deploy remain deliberately unapplied during source audit.
 
 ## Final pre-migration audit notes
 
@@ -99,3 +99,19 @@ Once an edition leaves `draft`, individual review/reject mutations are frozen. T
 Edition transitions are retry-safe for the same target state: repeating `reviewed → reviewed` or `published → published` returns the current edition instead of creating a second transition.
 
 Persisted Scout and Editor outputs are immutable for a given `(article_id, prompt_version)`. A concurrent/retried write returns the existing row instead of overwriting an already reviewed or published card.
+
+
+## General repository audit hardening
+
+A higher-depth repository audit after the initial v0.5 implementation added the following safeguards:
+
+- `/api/scout` and `/api/collect` are authenticated internal diagnostics rather than public operational surfaces.
+- `/api/daily` is POST-only because it has side effects and incurs model cost.
+- RSS fetches have a timeout and reject non-HTTP(S) article links.
+- RSS candidate IDs no longer depend on feed position.
+- URL canonicalization sorts query parameters and strips known tracking parameters consistently.
+- Scout rejects unknown or duplicate returned article IDs.
+- Editor validates option count, answer indexes and PREDICT/WTF invariants.
+- AI batch caps are defined once in the AI modules and reused by APIs/pipeline.
+- card invariants are duplicated at the database layer so direct writes cannot bypass core constraints.
+- local secrets/build artifacts are excluded through `.gitignore`.
