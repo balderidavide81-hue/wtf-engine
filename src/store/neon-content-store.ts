@@ -391,15 +391,27 @@ export class NeonContentStore implements ContentStore {
        returning id`,
       [sourceKey(candidate.sourceName), candidate.sourceName]
     );
+    const existing = await client.query(
+      "select id from articles where external_id=$1 or canonical_url=$2 limit 1",
+      [candidate.id, candidate.sourceUrl]
+    );
+    if ((existing.rowCount ?? 0) > 0) {
+      const articleId = String(existing.rows[0].id);
+      await client.query(
+        `update articles set
+           source_id=$2, source_name=$3, source_url=$4, title=$5, summary=$6,
+           published_at=$7, language=$8, country=$9, last_seen_at=now()
+         where id=$1`,
+        [articleId, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
+         candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null]
+      );
+      return articleId;
+    }
     const result = await client.query(
       `insert into articles
          (external_id, source_id, source_name, source_url, canonical_url, title, summary,
           published_at, language, country)
        values ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9)
-       on conflict (external_id) do update set
-         source_id=excluded.source_id, source_name=excluded.source_name, source_url=excluded.source_url,
-         title=excluded.title, summary=excluded.summary, published_at=excluded.published_at,
-         language=excluded.language, country=excluded.country, last_seen_at=now()
        returning id`,
       [candidate.id, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
        candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null]
