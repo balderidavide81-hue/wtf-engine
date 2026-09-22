@@ -70,6 +70,22 @@ jobs:
               title: candidate.title
             }));
 
+          const regionalTop = Object.fromEntries(expected.map(source => [
+            source,
+            report.candidates
+              .filter(candidate => candidate.sourceName === source)
+              .map(candidate => ({ candidate, score: preScoutPlayability(candidate).score }))
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 3)
+              .map(({ candidate, score }) => ({
+                score,
+                title: candidate.title,
+                eventCountry: candidate.eventCountry,
+                language: candidate.language
+              }))
+          ]));
+
+          console.log('REGIONAL_TOP=' + JSON.stringify(regionalTop));
           console.log('V0611_MIX=' + JSON.stringify({
             sourceCount: report.sourceCount,
             fetched: report.fetched,
