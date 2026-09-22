@@ -20,6 +20,24 @@ v0.6.4 adds two direct discovery feeds:
 Both are link/discovery sources only. WTF Engine keeps canonical attribution and does not republish
 article bodies. Third-party media is not cached or displayed unless separately approved.
 
+v0.6.5 adds a deliberately multilingual regional pack instead of continuing to grow only US/English
+sources:
+- Rai Televideo Dall'Italia + Culture (Italian / Italy);
+- The Conversation France (French);
+- The Conversation Spain (Spanish);
+- The Conversation Brasil (Brazilian Portuguese);
+- The Conversation Indonesia (Bahasa Indonesia);
+- The Conversation Australia (English);
+- The Conversation Africa (English).
+
+The goal is discovery breadth, not bulk. The paid Scout ceiling remains 30 candidates, and pre-AI
+selection now also caps source geography before the final recency fallback. This prevents the global
+feeds from being immediately re-dominated by whichever country published most recently.
+
+Source language is canonical input data. We do not translate the entire discovery stream: Luna Scout
+evaluates candidate text in the original language, while localization is deferred until after a story
+becomes a game card. See `docs/GLOBAL_LOCALIZATION_FOUNDATION.md`.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection
@@ -33,6 +51,10 @@ does not spend requests on it.
   policy should be reviewed before automatic promotion.
 - General sports/entertainment feeds: useful only if they do not swamp the 30-item paid Scout window;
   prefer tightly filtered or official event/result sources over broad firehoses.
+- ANSA and Adnkronos: useful Italian editorial references, but their current RSS terms are not suitable
+  for automatic commercial ingestion without a separate agreement.
+- Euronews and EL PAÍS: public RSS/MRSS catalogues exist, but commercial-use terms require a clearer
+  source-policy decision before automatic production enablement.
 
 ## Media strategy
 
