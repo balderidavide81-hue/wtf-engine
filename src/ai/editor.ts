@@ -20,7 +20,7 @@ export interface EditorBatch {
   usage: AiUsageDiagnostics;
 }
 
-export const EDITOR_PROMPT_VERSION = "editor/inline-v0.7-deterministic-quality";
+export const EDITOR_PROMPT_VERSION = "editor/inline-v0.8-final-hardening";
 export const EDITOR_BATCH_LIMIT = 12;
 export const EDITOR_MAX_OUTPUT_TOKENS = 6_000;
 
@@ -47,6 +47,8 @@ sourceCountry is publisher/feed geography, not event geography. Use eventCountry
 Write all player-facing copy in ${outputLanguage()}, preserving proper names.
 Use natural, idiomatic ${outputLanguage()} rather than literal translation.
 The hook must tease the premise without revealing the answer to the question. Do not put the correct option, exact number, exact name, date, percentage or truth value being asked for in the hook.
+When the question asks what, which or who, do not paraphrase the correct answer or its distinguishing category in the hook so strongly that one option becomes obvious.
+Do not add evaluative factual adjectives such as popular, famous, iconic, legendary or equivalent target-language wording unless that characterization is explicitly present in the supplied title or summary.
 The reveal must stay inside the supplied evidence. Do not add unit conversions, arithmetic, inferred quantities or extra factual claims that are not explicitly supplied.
 Distractor options may be invented for gameplay, but must be plausible, distinct and must never be stated as facts in the reveal.
 
@@ -158,6 +160,31 @@ function stableHash(value: string): number {
   return hash >>> 0;
 }
 
+function rotateResolvedAnswerToIndex(card: GameCardDraft, targetIndex: number): GameCardDraft {
+  if (
+    card.correctOptionIndex === null
+    || card.options.length < 2
+    || (card.interactionType !== "MULTIPLE_CHOICE" && card.interactionType !== "TRUE_FALSE")
+  ) {
+    return card;
+  }
+
+  const normalizedTarget = ((targetIndex % card.options.length) + card.options.length) % card.options.length;
+  const currentIndex = card.correctOptionIndex;
+  if (normalizedTarget === currentIndex) return card;
+
+  const shift = (normalizedTarget - currentIndex + card.options.length) % card.options.length;
+  const rotated = card.options.map((_, index) =>
+    card.options[(index - shift + card.options.length) % card.options.length]
+  );
+
+  return {
+    ...card,
+    options: rotated,
+    correctOptionIndex: normalizedTarget
+  };
+}
+
 export function balanceResolvedAnswerPosition(card: GameCardDraft): GameCardDraft {
   if (
     card.correctOptionIndex === null
@@ -169,19 +196,43 @@ export function balanceResolvedAnswerPosition(card: GameCardDraft): GameCardDraf
 
   const salt = card.interactionType === "TRUE_FALSE" ? ":true-false" : ":multiple-choice";
   const targetIndex = stableHash(`${card.articleId}${salt}`) % card.options.length;
-  const currentIndex = card.correctOptionIndex;
-  if (targetIndex === currentIndex) return card;
+  return rotateResolvedAnswerToIndex(card, targetIndex);
+}
 
-  const shift = (targetIndex - currentIndex + card.options.length) % card.options.length;
-  const rotated = card.options.map((_, index) =>
-    card.options[(index - shift + card.options.length) % card.options.length]
-  );
+export function balanceResolvedAnswerPositions(cards: GameCardDraft[]): GameCardDraft[] {
+  const targetIndexByArticleId = new Map<string, number>();
+  const groups = new Map<string, GameCardDraft[]>();
 
-  return {
-    ...card,
-    options: rotated,
-    correctOptionIndex: targetIndex
-  };
+  for (const card of cards) {
+    if (
+      card.correctOptionIndex === null
+      || card.options.length < 2
+      || (card.interactionType !== "MULTIPLE_CHOICE" && card.interactionType !== "TRUE_FALSE")
+    ) {
+      continue;
+    }
+    const key = `${card.interactionType}:${card.options.length}`;
+    const group = groups.get(key) ?? [];
+    group.push(card);
+    groups.set(key, group);
+  }
+
+  for (const [key, group] of groups) {
+    const ordered = [...group].sort((left, right) => left.articleId.localeCompare(right.articleId));
+    const optionCount = ordered[0]?.options.length ?? 0;
+    if (optionCount < 2) continue;
+
+    const groupSeed = ordered.map(card => card.articleId).join("|");
+    const offset = stableHash(`${key}:${groupSeed}`) % optionCount;
+    ordered.forEach((card, index) => {
+      targetIndexByArticleId.set(card.articleId, (offset + index) % optionCount);
+    });
+  }
+
+  return cards.map(card => {
+    const targetIndex = targetIndexByArticleId.get(card.articleId);
+    return targetIndex === undefined ? card : rotateResolvedAnswerToIndex(card, targetIndex);
+  });
 }
 
 export function validateCardDraft(card: GameCardDraft): void {
@@ -307,7 +358,7 @@ export class OpenAIEditor {
       throw new Error(`Editor returned ${parsed.cards.length} cards for ${eligible.length} submitted candidates`);
     }
 
-    const balancedCards = parsed.cards.map(balanceResolvedAnswerPosition);
+    const balancedCards = balanceResolvedAnswerPositions(parsed.cards);
     for (const card of balancedCards) validateCardDraft(card);
     return { cards: balancedCards, usage: makeUsage(response, model) };
   }
