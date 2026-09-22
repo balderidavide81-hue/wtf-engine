@@ -1,6 +1,6 @@
 name: Validate v0.6.11 regional world sources
 
-# Final gate after regional quality pruning + The Tokyo replacement
+# Final gate after regional quality pruning + The Tokyo timeout tuning
 
 on:
   pull_request:
