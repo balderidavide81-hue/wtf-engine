@@ -11,7 +11,7 @@ interface LocationAlias {
   label: string;
 }
 
-const DISPLAY_LOCALES = ["en", "it", "fr", "es", "pt-BR", "id", "de"] as const;
+const DISPLAY_LOCALES = ["en", "it", "fr", "es", "pt-BR", "id", "de", "tr"] as const;
 
 const COUNTRY_CODES = (
   "AD AE AF AG AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ " +
@@ -71,6 +71,12 @@ const LOCATION_HINTS: LocationAlias[] = [
   { alias: "Johannesburg", country: "ZA", label: "Johannesburg" },
   { alias: "Nairobi", country: "KE", label: "Nairobi" },
   { alias: "Lagos", country: "NG", label: "Lagos" },
+  { alias: "Istanbul", country: "TR", label: "Istanbul" },
+  { alias: "İstanbul", country: "TR", label: "İstanbul" },
+  { alias: "Ankara", country: "TR", label: "Ankara" },
+  { alias: "Izmir", country: "TR", label: "Izmir" },
+  { alias: "İzmir", country: "TR", label: "İzmir" },
+  { alias: "Bursa", country: "TR", label: "Bursa" },
 
   // Common English-language shorthand that Intl.DisplayNames does not provide.
   { alias: "United States", country: "US", label: "United States" },
