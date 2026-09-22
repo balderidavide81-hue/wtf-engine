@@ -20,8 +20,10 @@ function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): A
   const used = new Set<string>();
   const perSource = new Map<string, number>();
   const perLane = new Map<string, number>();
+  const perCountry = new Map<string, number>();
   const sourceCap = Math.max(2, Math.ceil(limit / 5));
   const laneCap = Math.max(2, Math.ceil(limit / 6));
+  const countryCap = Math.max(2, Math.ceil(limit / 5));
 
   const add = (candidate: ArticleCandidate) => {
     selected.push(candidate);
@@ -29,22 +31,28 @@ function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): A
     perSource.set(candidate.sourceName, (perSource.get(candidate.sourceName) ?? 0) + 1);
     const lane = editorialLane(candidate);
     perLane.set(lane, (perLane.get(lane) ?? 0) + 1);
+    const country = candidate.country?.trim().toUpperCase() || "UNKNOWN";
+    perCountry.set(country, (perCountry.get(country) ?? 0) + 1);
   };
 
   // Pass 1: protect both publisher and topic breadth before any paid AI call.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     const lane = editorialLane(candidate);
+    const country = candidate.country?.trim().toUpperCase() || "UNKNOWN";
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
     if ((perLane.get(lane) ?? 0) >= laneCap) continue;
+    if ((perCountry.get(country) ?? 0) >= countryCap) continue;
     add(candidate);
   }
 
-  // Pass 2: relax lane pressure but retain a publisher cap.
+  // Pass 2: relax topic pressure, but still protect publisher and source-geography breadth.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
+    const country = candidate.country?.trim().toUpperCase() || "UNKNOWN";
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
+    if ((perCountry.get(country) ?? 0) >= countryCap) continue;
     add(candidate);
   }
 
