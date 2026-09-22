@@ -94,7 +94,10 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     country: "AR",
     discoverySource: "Motor1 Argentina Curiosidad",
     categoryHint: "transport",
-    mediaUsageStatus: "link-only"
+    mediaUsageStatus: "link-only",
+    timeoutMs: 20_000,
+    retryCount: 1,
+    retryDelayMs: 1_500
   },
 
   // The Conversation operates local editions around the world and publishes
