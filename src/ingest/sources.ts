@@ -16,7 +16,7 @@ function gdeltSource(name: string, query: string, categoryHint: GameCategory): R
   const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
   url.searchParams.set("query", query);
   url.searchParams.set("mode", "artlist");
-  url.searchParams.set("maxrecords", "50");
+  url.searchParams.set("maxrecords", "30");
   url.searchParams.set("timespan", "48h");
   url.searchParams.set("sort", "datedesc");
   url.searchParams.set("format", "rss");
@@ -27,18 +27,19 @@ function gdeltSource(name: string, query: string, categoryHint: GameCategory): R
     discoverySource: name,
     categoryHint,
     sourceNameStrategy: "item-or-hostname",
-    mediaUsageStatus: "unreviewed"
+    mediaUsageStatus: "unreviewed",
+    timeoutMs: 30_000
   };
 }
 
 function gdeltSources(): RssSourceConfig[] {
   if (process.env.WTF_ENABLE_GDELT === "0") return [];
   return [
-    gdeltSource("GDELT WTF Animals & Local Oddities", '(escaped OR wandering OR "stuck in" OR rescued OR "unexpected visitor" OR bizarre OR unusual) (animal OR zoo OR wildlife OR pet OR bird OR snake OR horse OR deer OR emu)', "animals"),
-    gdeltSource("GDELT WTF Sports", '(bizarre OR unusual OR strange OR record OR mascot OR interrupted OR invasion OR stunt) (sport OR football OR soccer OR baseball OR basketball OR tennis OR race OR athlete OR referee OR stadium)', "sports"),
-    gdeltSource("GDELT WTF Entertainment & Culture", '(bizarre OR unusual OR strange OR unexpected OR record OR surprise) (movie OR film OR cinema OR actor OR actress OR singer OR concert OR television OR celebrity OR museum OR art)', "culture"),
-    gdeltSource("GDELT WTF Work & Technology", '(bizarre OR unusual OR strange OR unexpected OR robot OR record) (job OR workplace OR worker OR office OR profession OR factory OR restaurant OR delivery OR technology)', "work"),
-    gdeltSource("GDELT WTF Records & Lost-Found", '("world record" OR "found after" OR "returned after" OR "lost for" OR "hidden for" OR "sold for" OR auction)', "records")
+    gdeltSource("GDELT WTF Animals & Local Oddities", '("escaped animal" OR "loose animal" OR "animal rescue" OR "zoo escape" OR "wildlife rescue" OR "unusual animal")', "animals"),
+    gdeltSource("GDELT WTF Sports", '("bizarre sport" OR "unusual sport" OR "sports record" OR "mascot incident" OR "match interrupted" OR "pitch invasion" OR "stadium stunt")', "sports"),
+    gdeltSource("GDELT WTF Entertainment & Culture", '("bizarre film" OR "unusual movie" OR "strange concert" OR "celebrity surprise" OR "museum discovery" OR "art auction")', "culture"),
+    gdeltSource("GDELT WTF Work & Technology", '("unusual job" OR "bizarre job" OR "workplace incident" OR "robot worker" OR "delivery robot" OR "restaurant robot" OR "office record")', "work"),
+    gdeltSource("GDELT WTF Records & Lost-Found", '("world record" OR "found after" OR "returned after" OR "lost for" OR "hidden for" OR "sold for")', "records")
   ];
 }
 

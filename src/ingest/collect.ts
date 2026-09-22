@@ -13,9 +13,25 @@ export interface CollectionReport {
   bySource: Array<{ source: string; fetched: number }>;
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export async function collect(): Promise<CollectionReport> {
   const sources = sourcesFromEnv().map(config => new RssSource(config));
-  const settled = await Promise.allSettled(sources.map(source => source.fetchCandidates()));
+
+  // GDELT explicitly rate-limits its hosted APIs. Avoid a five-request burst from
+  // one serverless invocation while keeping normal publisher feeds fully parallel.
+  let gdeltOrdinal = 0;
+  const fetches = sources.map(source => {
+    if (!source.name.startsWith("GDELT ")) return source.fetchCandidates();
+    const startDelayMs = gdeltOrdinal++ * 1_500;
+    return (async () => {
+      if (startDelayMs > 0) await delay(startDelayMs);
+      return source.fetchCandidates();
+    })();
+  });
+  const settled = await Promise.allSettled(fetches);
 
   const raw: ArticleCandidate[] = [];
   const errors: CollectionReport["errors"] = [];
