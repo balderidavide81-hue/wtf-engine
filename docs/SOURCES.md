@@ -56,22 +56,22 @@ guaranteeing them a paid Scout slot.
 
 ### Broader regional world pack
 
-v0.6.11 adds two regional discovery sources that passed both source-policy and live quality gates:
+v0.6.11 promotes one additional regional source after source-policy and live quality gates:
 
-- Clarin Autos — Spanish / Argentina / official RSS;
-- The Tokyo Japan Discovery — English / Japan / Atom; site-authored excerpts and metadata are CC BY 4.0.
+- Clarin Autos — Spanish / Argentina / official RSS.
 
-Neither receives a focused-curiosity bonus. They must earn a Scout slot through the same deterministic
-playability signals and source/geography caps as the rest of the pool.
+It receives no focused-curiosity bonus and must earn a Scout slot through the same deterministic
+playability signals and source/geography caps as the rest of the pool. Clarín explicitly says its
+feeds may be added free to readers and integrated into websites/apps.
 
-Clarín explicitly says its feeds may be added free to readers and integrated into websites/apps.
-The Tokyo exposes free Atom/JSON feeds and APIs, attributes the original publisher, and licenses its
-site-authored excerpts and metadata under CC BY 4.0.
+Several technically healthy regional feeds were tested but deliberately not promoted because their
+current top items had weak deterministic WTF playability: TimesLIVE Lifestyle, TimesLIVE Motoring,
+The Standard Magazines, The Standard Entertainment and Global Voices Japan.
 
-Five technically healthy regional feeds were tested but not promoted because their current top items
-had weak deterministic WTF playability: TimesLIVE Lifestyle, TimesLIVE Motoring, The Standard
-Magazines, The Standard Entertainment and Global Voices Japan. They remain research candidates rather
-than adding permanent collector volume that rarely reaches Scout.
+The Tokyo was also evaluated separately. Its programmatic feeds are free and its site-authored
+excerpts/metadata are CC BY 4.0, but the current 50-item Atom feed produced no positive deterministic
+WTF signals and no Scout-slot candidate in validation. It therefore remains a research source rather
+than adding permanent collector volume.
 
 ## Sources reviewed but not enabled automatically
 
@@ -94,6 +94,10 @@ Public RSS availability alone is not sufficient for commercial production use.
   sufficiently permissive RSS/reuse policy was confirmed for automated commercial promotion.
 - Vantage Ke / Viral Tea: public category feeds exist, but current terms prohibit reproduction/distribution
   without prior written consent; keep research-only unless explicit permission is obtained.
+- Tokyo Weekender: current editorial fit is excellent (recent mascot, sleep-race, robot and other locally
+  specific oddities), but no sufficiently clear RSS/reuse route was confirmed for automated production.
+- The Tokyo: source-policy is compatible (free feeds, CC BY 4.0 excerpts/metadata), but its current general
+  feed failed the quality-yield gate; reconsider only with a sufficiently focused category/query feed.
 
 These can remain research/manual-reference sources without entering the automated collector.
 
