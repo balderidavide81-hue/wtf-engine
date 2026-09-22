@@ -6,7 +6,7 @@ import { diversifyQueue, editorialLane } from "./diversity.js";
 import type { ContentStore } from "../store/content-store.js";
 import { editionDateFor } from "../time/edition-date.js";
 import { sourceGeography } from "../geo/extract.js";
-import { comparePreScoutPriority } from "./playability.js";
+import { comparePreScoutPriority, preScoutPlayability } from "./playability.js";
 
 const DEFAULT_SCOUT_LIMIT = SCOUT_BATCH_LIMIT;
 
@@ -20,6 +20,8 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
   const sourceCap = Math.max(2, Math.ceil(limit / 5));
   const laneCap = Math.max(2, Math.ceil(limit / 6));
   const countryCap = Math.max(2, Math.ceil(limit / 5));
+  const qualityTarget = Math.max(1, Math.ceil(limit * 2 / 3));
+  const minimumQualityScore = 10;
 
   const add = (candidate: ArticleCandidate) => {
     selected.push(candidate);
@@ -31,9 +33,14 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     perCountry.set(country, (perCountry.get(country) ?? 0) + 1);
   };
 
-  // Pass 1: protect both publisher and topic breadth before any paid AI call.
+  const isQualityCandidate = (candidate: ArticleCandidate) =>
+    preScoutPlayability(candidate).score >= minimumQualityScore;
+
+  // Pass 1: reserve roughly two thirds of the paid window for candidates with
+  // deterministic playability signals while protecting publisher/topic/geography breadth.
   for (const candidate of sorted) {
-    if (selected.length >= limit) break;
+    if (selected.length >= qualityTarget) break;
+    if (!isQualityCandidate(candidate)) continue;
     const lane = editorialLane(candidate);
     const country = sourceGeography(candidate);
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
@@ -42,7 +49,25 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     add(candidate);
   }
 
-  // Pass 2: relax topic pressure, but still protect publisher and source-geography breadth.
+  // Pass 2: keep quality and source/geography breadth, relaxing only topic pressure.
+  for (const candidate of sorted) {
+    if (selected.length >= qualityTarget) break;
+    if (used.has(candidate.id) || !isQualityCandidate(candidate)) continue;
+    const country = sourceGeography(candidate);
+    if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
+    if ((perCountry.get(country) ?? 0) >= countryCap) continue;
+    add(candidate);
+  }
+
+  // Pass 3: if quality exists but is concentrated in a few feeds, prefer paying
+  // Scout for that quality rather than filling the reserved block with generic news.
+  for (const candidate of sorted) {
+    if (selected.length >= qualityTarget) break;
+    if (used.has(candidate.id) || !isQualityCandidate(candidate)) continue;
+    add(candidate);
+  }
+
+  // Pass 4: reserve the rest for global exploration, retaining publisher/geography caps.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
@@ -52,7 +77,7 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     add(candidate);
   }
 
-  // Pass 3: fill spare capacity by recency.
+  // Pass 5: never leave paid capacity unused when the discovery pool is smaller/imbalanced.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
