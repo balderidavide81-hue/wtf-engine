@@ -1,0 +1,20 @@
+name: One-shot Scout result fetch
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch exactly once
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://wtf-engine.vercel.app/api/probe-global-scout-v067-prod?nonce=prod-v068-31af72c9d5e4'
+          http_code="$(curl -sS --retry 0 --max-time 240 -o scout-result.json -w '%{http_code}' "$url")"
+          echo "HTTP_STATUS=$http_code"
+          cat scout-result.json
+          test "$http_code" = "200"
