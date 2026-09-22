@@ -1,6 +1,6 @@
 name: Validate v0.6.11 regional world sources
 
-# Final gate after replacing flaky Clarín with focused Motor1 Argentina
+# Final gate after Motor1 Argentina timeout tuning
 
 on:
   pull_request:
