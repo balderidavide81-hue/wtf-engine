@@ -113,6 +113,10 @@ stories, Zambia, Norway, Namibia, Bolivia, Ethiopia and Argentina), while the pr
 China assignment on a West-Africa headline disappeared. The policy deliberately favors precision over
 geographic recall.
 
+The second real Luna Scout batch on this stack produced 16 KEEP / 8 MAYBE / 6 REJECT, improving from
+the previous 13 / 11 / 6 baseline without increasing rejects. All 16 KEEP results were SUPPORTED.
+Detailed batch/source/language/usage results are recorded in `docs/SECOND_GLOBAL_SCOUT_V0614.md`.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection
