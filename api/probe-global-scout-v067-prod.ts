@@ -5,8 +5,8 @@ import { preScoutPlayability } from "../src/pipeline/playability.js";
 import { OpenAIScout } from "../src/ai/scout.js";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
 
-const PROBE_NONCE = "prod-v067-9d41c6e2b8fa";
-const PROBE_LEASE = "probe:v067:global-scout:2026-09-22";
+const PROBE_NONCE = "prod-v068-31af72c9d5e4";
+const PROBE_LEASE = "probe:v068:global-scout:2026-09-22";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
