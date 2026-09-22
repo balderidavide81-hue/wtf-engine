@@ -46,7 +46,7 @@ const POSITIVE_RULES: SignalRule[] = [
   {
     label: "superlative-or-first",
     points: 10,
-    pattern: /\b(first[- ]ever|largest|smallest|longest|shortest|oldest|youngest|rare appearance|prima volta|più grande|più piccolo|più lungo|rar[oa]|première fois|plus grand|plus petit|rare|primera vez|más grande|más pequeño|raro|primeira vez|maior|menor|raro|pertama kali|terbesar|terkecil|langka)\b/iu
+    pattern: /\b(first[- ]ever|largest|smallest|longest|shortest|oldest|youngest|rare appearance|prima volta|più grande|più piccolo|più lungo|apparizione rara|première fois|plus grand|plus petit|apparition rare|primera vez|más grande|más pequeño|aparición rara|primeira vez|maior|menor|aparição rara|pertama kali|terbesar|terkecil|kemunculan langka)\b/iu
   },
   {
     label: "animal-event",
@@ -91,7 +91,8 @@ function material(candidate: ArticleCandidate): string {
 }
 
 export function preScoutPlayability(candidate: ArticleCandidate): PreScoutPlayability {
-  const text = material(candidate);
+  const positiveText = candidate.title;
+  const negativeText = material(candidate);
   const positiveSignals: string[] = [];
   const negativeSignals: string[] = [];
   let score = 0;
@@ -104,7 +105,7 @@ export function preScoutPlayability(candidate: ArticleCandidate): PreScoutPlayab
   }
 
   for (const rule of POSITIVE_RULES) {
-    if (!rule.pattern.test(text)) continue;
+    if (!rule.pattern.test(positiveText)) continue;
     score += rule.points;
     positiveSignals.push(rule.label);
   }
@@ -118,7 +119,7 @@ export function preScoutPlayability(candidate: ArticleCandidate): PreScoutPlayab
   }
 
   for (const rule of NEGATIVE_RULES) {
-    if (!rule.pattern.test(text)) continue;
+    if (!rule.pattern.test(negativeText)) continue;
     score += rule.points;
     negativeSignals.push(rule.label);
   }
