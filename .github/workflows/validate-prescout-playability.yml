@@ -1,0 +1,68 @@
+name: Validate pre-scout playability
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+      - name: Compare live ranked batch
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
+          const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
+          const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
+
+          const report = await collect();
+          if (report.kept < 30) throw new Error(`collector kept only ${report.kept} candidates`);
+          const selected = selectScoutCandidates(report.candidates, 30);
+          const rows = selected.map(candidate => ({
+            score: preScoutPlayability(candidate).score,
+            positive: preScoutPlayability(candidate).positiveSignals,
+            negative: preScoutPlayability(candidate).negativeSignals,
+            language: candidate.language,
+            sourceCountry: candidate.sourceCountry ?? candidate.country,
+            eventCountry: candidate.eventCountry,
+            source: candidate.sourceName,
+            title: candidate.title
+          }));
+
+          const countBy = (getter) => {
+            const counts = {};
+            for (const candidate of selected) {
+              const key = getter(candidate) ?? 'UNKNOWN';
+              counts[key] = (counts[key] ?? 0) + 1;
+            }
+            return Object.fromEntries(Object.entries(counts).sort((a,b) => b[1]-a[1]));
+          };
+
+          console.log('SOURCE_ERRORS=' + JSON.stringify(report.errors));
+          console.log('PRESCOUT_BATCH=' + JSON.stringify({
+            fetched: report.fetched,
+            kept: report.kept,
+            selected: selected.length,
+            languages: countBy(c => c.language),
+            sourceCountries: countBy(c => c.sourceCountry ?? c.country),
+            eventCountries: countBy(c => c.eventCountry),
+            positiveCount: rows.filter(r => r.positive.length > 0).length,
+            negativeOnlyCount: rows.filter(r => r.positive.length === 0 && r.negative.length > 0).length,
+            rows
+          }));
+
+          if (selected.length !== 30) throw new Error('expected 30 selected candidates');
+          if (rows.filter(r => r.positive.length > 0).length < 15) {
+            throw new Error('fewer than half the paid Scout candidates have positive playability signals');
+          }
+          NODE
