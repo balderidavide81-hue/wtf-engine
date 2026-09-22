@@ -162,13 +162,21 @@ export class RssSource implements NewsSource {
 
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       try {
-        const response = await fetch(this.config.url, {
-          headers: {
-            "user-agent": "wtf-engine/0.6 (+editorial discovery)",
-            "accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5"
-          },
-          signal: AbortSignal.timeout(this.config.timeoutMs ?? 10_000)
-        });
+        const controller = new AbortController();
+        const timeoutMs = this.config.timeoutMs ?? 10_000;
+        const timeout = setTimeout(() => controller.abort(new Error(`${this.name}: timeout after ${timeoutMs}ms`)), timeoutMs);
+        let response: Response;
+        try {
+          response = await fetch(this.config.url, {
+            headers: {
+              "user-agent": "wtf-engine/0.6 (+editorial discovery)",
+              "accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5"
+            },
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
 
         if (response.ok) return response;
         lastError = new Error(`${this.name}: HTTP ${response.status}`);
