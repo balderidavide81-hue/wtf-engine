@@ -57,6 +57,27 @@ Live v0.6.10 validation:
 - the real wild-dog paraphrase pair is removed by the semantic dedupe fixture;
 - no near-story duplicate pair survived in the selected 30-item validation batch.
 
+v0.6.11 expands the world-source search without accepting low-yield feeds merely for geography.
+Live evaluation initially tested regional feeds across Argentina, South Africa, Kenya and Japan.
+TimesLIVE Lifestyle/Motoring, The Standard Magazines/Entertainment and Global Voices Japan were
+removed again because their best current items had little or no deterministic WTF signal. Clarín Autos
+briefly earned an Argentina slot, but repeated validation showed intermittent feed timeouts even after
+a bounded retry. Motor1 Argentina's RSS directory lists a `Curiosidad` category, but its live endpoint
+returned HTTP 404 during validation. Neither Argentina source was promoted.
+
+The Tokyo was then tested as a Japan replacement because its Atom/JSON programmatic feeds are free
+and its site-authored excerpts/metadata are CC BY 4.0. The source-policy gate passed, but the current
+50-item feed produced zero positive deterministic WTF scores in its top candidates and no Scout-slot
+entry, so it was not promoted. Africa, Japan and Argentina therefore remain open source-quality gaps.
+
+Germany produced a clean promotion candidate: Motor1 Germany's official RSS directory exposes a
+dedicated `Bizarr` feed and describes RSS as a free user service. v0.6.11 adds German language
+detection plus German deterministic playability/sensitivity signals and promotes Motor1 Germany
+Bizarr with the same modest focused-curiosity prior used for the validated French/Spanish/Italian/
+Brazilian feeds. Final live validation returned 20 German candidates with zero feed errors, and one
+entered the 30-item pre-Scout selection without quota forcing. The selected batch represented seven
+languages: English, Italian, French, Spanish, Brazilian Portuguese, Indonesian and German.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection

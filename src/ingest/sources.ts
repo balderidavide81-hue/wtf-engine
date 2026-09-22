@@ -85,6 +85,18 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     mediaUsageStatus: "link-only"
   },
 
+  // v0.6.11 regional expansion: official/public RSS endpoints from local
+  // publishers. These are discovery/link sources only; no article-body reuse.
+  {
+    name: "Motor1 Germany Bizarr",
+    url: "https://de.motor1.com/rss/category/bizarr/",
+    language: "de",
+    country: "DE",
+    discoverySource: "Motor1 Germany Bizarr",
+    categoryHint: "transport",
+    mediaUsageStatus: "link-only"
+  },
+
   // The Conversation operates local editions around the world and publishes
   // under Creative Commons. We still ingest only discovery metadata and keep
   // third-party media link-only; the original source language is preserved.

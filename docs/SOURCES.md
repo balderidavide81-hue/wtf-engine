@@ -54,6 +54,35 @@ directly. WTF Engine ingests only title/summary/canonical-link discovery metadat
 link-only. A small source prior helps these focused feeds compete with broad English sources without
 guaranteeing them a paid Scout slot.
 
+### Broader regional world pack
+
+v0.6.11 promotes one additional focused regional source after source-policy, transport-reliability
+and live quality gates:
+
+- Motor1 Germany Bizarr — German / Germany / official category RSS.
+
+Motor1 Germany explicitly provides its RSS feeds as a free service and exposes a dedicated `Bizarr`
+category. The feed receives the same modest focused-curiosity prior as the already validated Motor1 /
+InsideEVs feeds for France, Spain, Italy and Brazil. German is detected as a first-class source-content
+language and receives matching deterministic pre-Scout signals rather than relying on the feed label.
+
+Final live validation returned 20 German candidates with zero source errors. One German story entered
+the 30-item deterministic Scout selection without a forced language quota, expanding live source
+coverage to seven languages: English, Italian, French, Spanish, Brazilian Portuguese, Indonesian and
+German.
+
+Several technically healthy regional feeds were tested but deliberately not promoted because their
+current top items had weak deterministic WTF playability: TimesLIVE Lifestyle, TimesLIVE Motoring,
+The Standard Magazines, The Standard Entertainment and Global Voices Japan. Clarín Autos briefly
+produced a viable Argentina candidate, but repeated GitHub-runner validation exposed intermittent
+timeouts even with a bounded retry. Motor1 Argentina's official RSS directory lists a `Curiosidad`
+feed, but the live category endpoint returned HTTP 404 during validation, so Argentina was not promoted.
+
+The Tokyo was also evaluated separately. Its programmatic feeds are free and its site-authored
+excerpts/metadata are CC BY 4.0, but the current 50-item Atom feed produced no positive deterministic
+WTF signals and no Scout-slot candidate in validation. It therefore remains a research source rather
+than adding permanent collector volume.
+
 ## Sources reviewed but not enabled automatically
 
 Public RSS availability alone is not sufficient for commercial production use.
@@ -64,6 +93,21 @@ Public RSS availability alone is not sufficient for commercial production use.
 - EL PAÍS: extensive public RSS catalogue exists; historic material describes headline syndication, but
   current licensing/contact pages make commercial reuse sufficiently ambiguous that automatic production
   ingestion should wait for explicit source-policy review.
+- SoraNews24 / RocketNews24: editorial fit for Japan/Asia is excellent, but SoraNews24's partnership page
+  routes RSS/article contribution and distribution through a contact/partner arrangement. Keep them as
+  research candidates until reuse terms for automated commercial discovery are explicitly cleared.
+- The Straits Times: official Life RSS exists, but current site terms are not permissive enough for automatic
+  production promotion without a separate source-policy decision.
+- The Times Post (South Africa): current RSS terms prohibit non-personal display on mobile devices and
+  monetization/redistribution of the feed, so it is not suitable for the planned mobile game.
+- The South African: strong offbeat editorial fit exists, but current pages retain copyright and no
+  sufficiently permissive RSS/reuse policy was confirmed for automated commercial promotion.
+- Vantage Ke / Viral Tea: public category feeds exist, but current terms prohibit reproduction/distribution
+  without prior written consent; keep research-only unless explicit permission is obtained.
+- Tokyo Weekender: current editorial fit is excellent (recent mascot, sleep-race, robot and other locally
+  specific oddities), but no sufficiently clear RSS/reuse route was confirmed for automated production.
+- The Tokyo: source-policy is compatible (free feeds, CC BY 4.0 excerpts/metadata), but its current general
+  feed failed the quality-yield gate; reconsider only with a sufficiently focused category/query feed.
 
 These can remain research/manual-reference sources without entering the automated collector.
 
