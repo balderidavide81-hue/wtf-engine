@@ -5,8 +5,8 @@ import { preScoutPlayability } from "../src/pipeline/playability.js";
 import { OpenAIScout } from "../src/ai/scout.js";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
 
-const PROBE_NONCE = "prod-v068-31af72c9d5e4";
-const PROBE_LEASE = "probe:v068:global-scout:2026-09-22";
+const PROBE_NONCE = "prod-v069-b7a18c4e52df";
+const PROBE_LEASE = "probe:v069:global-scout:2026-09-22";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
@@ -39,6 +39,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const selected = selectScoutCandidates(collection.candidates, 30);
     const byId = new Map(selected.map(candidate => [candidate.id, candidate]));
     const batch = await new OpenAIScout().classifyDetailed(selected);
+
+    console.log("global_scout_probe_summary", JSON.stringify({
+      collection: { sourceCount: collection.sourceCount, fetched: collection.fetched, kept: collection.kept, errors: collection.errors },
+      selection: {
+        count: selected.length,
+        languages: selected.reduce<Record<string, number>>((acc, candidate) => {
+          const key = candidate.language ?? "UNKNOWN";
+          acc[key] = (acc[key] ?? 0) + 1;
+          return acc;
+        }, {}),
+        sourceCountries: selected.reduce<Record<string, number>>((acc, candidate) => {
+          const key = candidate.sourceCountry ?? candidate.country ?? "UNKNOWN";
+          acc[key] = (acc[key] ?? 0) + 1;
+          return acc;
+        }, {})
+      },
+      usage: batch.usage
+    }));
+
+    for (const result of batch.results) {
+      const candidate = byId.get(result.articleId);
+      const playability = candidate ? preScoutPlayability(candidate) : null;
+      console.log("global_scout_probe_result", JSON.stringify({
+        articleId: result.articleId,
+        title: candidate?.title ?? null,
+        language: candidate?.language ?? null,
+        sourceName: candidate?.sourceName ?? null,
+        sourceCountry: candidate?.sourceCountry ?? candidate?.country ?? null,
+        eventCountry: candidate?.eventCountry ?? null,
+        preScoutScore: playability?.score ?? null,
+        decision: result.decision,
+        modes: result.modes,
+        scores: result.scores,
+        reason: result.reason,
+        evidenceStatus: result.evidenceStatus
+      }));
+    }
 
     return res.status(200).json({
       collection: {
