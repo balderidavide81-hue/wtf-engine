@@ -97,6 +97,15 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     mediaUsageStatus: "link-only"
   },
   {
+    name: "Motor1 Turkey Ilginc",
+    url: "https://tr.motor1.com/rss/category/weird/",
+    language: "tr",
+    country: "TR",
+    discoverySource: "Motor1 Turkey Ilginc",
+    categoryHint: "transport",
+    mediaUsageStatus: "link-only"
+  },
+  {
     name: "AllAfrica Wildlife",
     url: "https://allafrica.com/tools/headlines/rdf/wildlife/headlines.rdf",
     language: "en",
