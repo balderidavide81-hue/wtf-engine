@@ -20,7 +20,7 @@ export interface EditorBatch {
   usage: AiUsageDiagnostics;
 }
 
-export const EDITOR_PROMPT_VERSION = "editor/inline-v0.6-gameplay-quality";
+export const EDITOR_PROMPT_VERSION = "editor/inline-v0.7-deterministic-quality";
 export const EDITOR_BATCH_LIMIT = 12;
 export const EDITOR_MAX_OUTPUT_TOKENS = 6_000;
 
@@ -53,7 +53,7 @@ Distractor options may be invented for gameplay, but must be plausible, distinct
 WTF cards:
 - choose TRUE_FALSE only for one crisp, surprising, unambiguous claim that is not simply repeated by the hook;
 - do not systematically make TRUE_FALSE answers true; when a clear, non-misleading false formulation is possible, vary the truth value across the batch;
-- TRUE_FALSE must use exactly "Vero", "Falso" in Italian or "True", "False" in English;
+- TRUE_FALSE must use exactly the two labels "Vero" and "Falso" in Italian or "True" and "False" in English; label order does not matter;
 - otherwise use MULTIPLE_CHOICE with 2-4 distinct plausible options.
 
 PREDICT cards:
@@ -106,10 +106,47 @@ const schema = {
 function isTrueFalseOptions(options: string[]): boolean {
   if (options.length !== 2) return false;
   const normalized = options.map(option => option.trim().toLocaleLowerCase());
+  const values = new Set(normalized);
   return (
-    (normalized[0] === "vero" && normalized[1] === "falso")
-    || (normalized[0] === "true" && normalized[1] === "false")
+    (values.has("vero") && values.has("falso"))
+    || (values.has("true") && values.has("false"))
   );
+}
+
+function normalizeLeakText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}%]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function containsWholePhrase(haystack: string, needle: string): boolean {
+  if (!needle) return false;
+  return (` ${haystack} `).includes(` ${needle} `);
+}
+
+export function validateEditorCardQuality(card: GameCardDraft): void {
+  const hook = normalizeLeakText(card.hook);
+
+  if (card.interactionType === "MULTIPLE_CHOICE" && card.correctOptionIndex !== null) {
+    const answer = normalizeLeakText(card.options[card.correctOptionIndex] ?? "");
+    const numericAnswer = /^\d+(?:[.,]\d+)?%?$/.test(answer);
+    if ((numericAnswer || answer.length >= 4) && containsWholePhrase(hook, answer)) {
+      throw new Error(`Editor card ${card.articleId} leaks the correct answer in the hook`);
+    }
+  }
+
+  if (card.interactionType === "TRUE_FALSE") {
+    const claim = normalizeLeakText(
+      card.question.replace(/^\s*(?:vero\s+o\s+falso|true\s+or\s+false)\s*[:\-–—]?\s*/iu, "")
+    );
+    if (claim.length >= 12 && containsWholePhrase(hook, claim)) {
+      throw new Error(`Editor card ${card.articleId} repeats the TRUE_FALSE claim in the hook`);
+    }
+  }
 }
 
 function stableHash(value: string): number {
@@ -121,12 +158,17 @@ function stableHash(value: string): number {
   return hash >>> 0;
 }
 
-function balanceMultipleChoiceAnswer(card: GameCardDraft): GameCardDraft {
-  if (card.interactionType !== "MULTIPLE_CHOICE" || card.correctOptionIndex === null || card.options.length < 2) {
+export function balanceResolvedAnswerPosition(card: GameCardDraft): GameCardDraft {
+  if (
+    card.correctOptionIndex === null
+    || card.options.length < 2
+    || (card.interactionType !== "MULTIPLE_CHOICE" && card.interactionType !== "TRUE_FALSE")
+  ) {
     return card;
   }
 
-  const targetIndex = stableHash(card.articleId) % card.options.length;
+  const salt = card.interactionType === "TRUE_FALSE" ? ":true-false" : ":multiple-choice";
+  const targetIndex = stableHash(`${card.articleId}${salt}`) % card.options.length;
   const currentIndex = card.correctOptionIndex;
   if (targetIndex === currentIndex) return card;
 
@@ -142,7 +184,7 @@ function balanceMultipleChoiceAnswer(card: GameCardDraft): GameCardDraft {
   };
 }
 
-function validateCardDraft(card: GameCardDraft): void {
+export function validateCardDraft(card: GameCardDraft): void {
   if (!card.hook.trim() || !card.question.trim() || !card.reveal.trim()) {
     throw new Error(`Editor card ${card.articleId} has empty required text`);
   }
@@ -189,6 +231,8 @@ function validateCardDraft(card: GameCardDraft): void {
       throw new Error(`TRUE_FALSE card ${card.articleId} must use an ordered true/false option pair`);
     }
   }
+
+  validateEditorCardQuality(card);
 }
 
 function compactEditorItem(item: { candidate: ArticleCandidate; scout: ScoutResult }) {
@@ -263,7 +307,7 @@ export class OpenAIEditor {
       throw new Error(`Editor returned ${parsed.cards.length} cards for ${eligible.length} submitted candidates`);
     }
 
-    const balancedCards = parsed.cards.map(balanceMultipleChoiceAnswer);
+    const balancedCards = parsed.cards.map(balanceResolvedAnswerPosition);
     return { cards: balancedCards, usage: makeUsage(response, model) };
   }
 }
