@@ -164,16 +164,14 @@ Engine-reported usage:
 
 This is the engine's configured pricing estimate for the run; it is not a billing statement.
 
-## Next step
+## Editor follow-up
 
-Run the Editor on the 16 KEEP + SUPPORTED items and evaluate the actual player-facing cards:
+The first real 16-card Editor evaluation is complete and documented in
+`docs/FIRST_EDITOR_EVAL_V0615.md`.
 
-- hook quality;
-- interaction type;
-- question/options quality;
-- reveal quality;
-- factual grounding;
-- international readability;
-- whether the result is genuinely fun enough to publish.
+It exposed and fixed one-to-one card cardinality, and then drove v0.6.16 gameplay-quality hardening
+for hook leakage, answer-position bias, TRUE_FALSE quality, PREDICT exclusivity, idiomatic localization
+and reveal grounding.
 
-Do not expand source volume again before this end-to-end card-quality test unless a specific source defect is discovered.
+The v0.6.16 source is merged but its live comparison run is currently blocked by the Vercel deployment
+rate limit. Do not expand source volume again before the post-hardening card-quality comparison.
