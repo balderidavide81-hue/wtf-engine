@@ -13,29 +13,16 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
 
 const GDELT_DISCOVERY_QUERY = [
   '"escaped animal"',
-  '"loose animal"',
-  '"unusual animal"',
   '"world record"',
-  '"record attempt"',
-  '"bizarre sport"',
   '"unusual sport"',
-  '"mascot incident"',
   '"match interrupted"',
-  '"pitch invasion"',
   '"strange concert"',
   '"unusual movie"',
-  '"celebrity surprise"',
   '"museum discovery"',
-  '"art auction"',
   '"unusual job"',
-  '"bizarre job"',
   '"workplace incident"',
-  '"robot worker"',
-  '"delivery robot"',
   '"found after"',
   '"returned after"',
-  '"lost for"',
-  '"hidden for"',
   '"sold for"'
 ].join(" OR ");
 
@@ -45,7 +32,7 @@ function gdeltGlobalRadar(): RssSourceConfig[] {
   const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
   url.searchParams.set("query", `(${GDELT_DISCOVERY_QUERY})`);
   url.searchParams.set("mode", "artlist");
-  url.searchParams.set("maxrecords", "100");
+  url.searchParams.set("maxrecords", "50");
   url.searchParams.set("timespan", "48h");
   url.searchParams.set("sort", "datedesc");
   url.searchParams.set("format", "rss");
@@ -57,7 +44,9 @@ function gdeltGlobalRadar(): RssSourceConfig[] {
     discoverySource: "GDELT WTF Global Radar",
     sourceNameStrategy: "item-or-hostname",
     mediaUsageStatus: "unreviewed",
-    timeoutMs: 30_000
+    timeoutMs: 20_000,
+    retryCount: 1,
+    retryDelayMs: 2_000
   }];
 }
 

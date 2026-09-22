@@ -13,6 +13,8 @@ export interface RssSourceConfig {
   mediaUsageStatus?: MediaUsageStatus;
   sourceNameStrategy?: "config" | "item-or-hostname";
   timeoutMs?: number;
+  retryCount?: number;
+  retryDelayMs?: number;
 }
 
 type FeedItem = Record<string, unknown>;
@@ -124,6 +126,20 @@ function publisherName(item: FeedItem, canonicalLink: string, config: RssSourceC
   }
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function errorDetail(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = (error as Error & { cause?: unknown }).cause;
+  if (!cause || typeof cause !== "object") return error.message;
+  const obj = cause as Record<string, unknown>;
+  const code = typeof obj.code === "string" ? obj.code : undefined;
+  const message = typeof obj.message === "string" ? obj.message : undefined;
+  return [error.message, code, message].filter(Boolean).join(" / ");
+}
+
 export class RssSource implements NewsSource {
   readonly name: string;
 
@@ -131,12 +147,40 @@ export class RssSource implements NewsSource {
     this.name = config.name;
   }
 
+  private async fetchResponse(): Promise<Response> {
+    const retryCount = Math.max(0, Math.min(this.config.retryCount ?? 0, 2));
+    const retryDelayMs = Math.max(250, Math.min(this.config.retryDelayMs ?? 1_500, 10_000));
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+      try {
+        const response = await fetch(this.config.url, {
+          headers: {
+            "user-agent": "wtf-engine/0.6 (+editorial discovery)",
+            "accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5"
+          },
+          signal: AbortSignal.timeout(this.config.timeoutMs ?? 10_000)
+        });
+
+        if (response.ok) return response;
+        lastError = new Error(`${this.name}: HTTP ${response.status}`);
+        const retryable = response.status === 429 || response.status >= 500;
+        if (!retryable || attempt === retryCount) throw lastError;
+      } catch (error) {
+        lastError = error;
+        if (attempt === retryCount) {
+          throw new Error(`${this.name}: fetch failed (${errorDetail(error)})`);
+        }
+      }
+
+      await delay(retryDelayMs * (attempt + 1));
+    }
+
+    throw new Error(`${this.name}: fetch failed (${errorDetail(lastError)})`);
+  }
+
   async fetchCandidates(): Promise<ArticleCandidate[]> {
-    const response = await fetch(this.config.url, {
-      headers: { "user-agent": "wtf-engine/0.6 (+editorial discovery)" },
-      signal: AbortSignal.timeout(this.config.timeoutMs ?? 10_000)
-    });
-    if (!response.ok) throw new Error(`${this.name}: HTTP ${response.status}`);
+    const response = await this.fetchResponse();
     const declaredLength = Number(response.headers.get("content-length") ?? "0");
     if (Number.isFinite(declaredLength) && declaredLength > MAX_RSS_RESPONSE_CHARS * 2) {
       throw new Error(`${this.name}: RSS response declares excessive size`);
