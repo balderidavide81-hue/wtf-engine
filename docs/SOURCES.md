@@ -1,34 +1,41 @@
-# Source policy v0.2
+# Source policy v0.5
 
-The collector now has a deliberately small automatic default registry.
+The collector uses a deliberately small automatic RSS portfolio plus optional operator-configured feeds.
 
-## Active default source
+## Active default feeds
 
-- UPI Odd News — official odd-news publisher; machine-readable RSS endpoint used for discovery.
+- UPI Odd News
+- Phys.org Plants & Animals
+- Phys.org Archaeology
+- Phys.org Space
+- New Atlas Science
+- New Atlas Technology
+- New Atlas Transport
 
-UPI describes Odd News as weird/viral news from around the world. Its news content is copyrighted/licensed, so WTF Engine uses feed metadata for discovery and keeps the canonical source URL; it must not republish article bodies or media without the appropriate rights.
+The exact feed URLs and metadata live in `src/ingest/sources.ts`.
+
+## Ingestion rules
+
+- ingest only title/summary/source metadata needed for discovery;
+- retain a canonical HTTP(S) source URL for attribution and review;
+- strip common tracking parameters before identity/dedupe;
+- reject non-HTTP(S) article links;
+- use deterministic duplicate/sensitivity filtering before AI;
+- do not republish third-party article bodies or media without appropriate rights.
+
+RSS fetches have a finite timeout so one stalled publisher cannot occupy the whole generation window indefinitely.
 
 ## Expansion
 
-Additional feeds can be added through `WTF_RSS_SOURCES` without a code deploy:
+Additional feeds can be added through `WTF_RSS_SOURCES`:
 
 `Name|URL|language|country,Name 2|URL|language|country`
 
-Before activating another source:
-1. verify the feed/API endpoint;
-2. review access and reuse/licensing terms;
-3. ingest only what is needed for candidate selection;
-4. retain canonical URLs for attribution and verification;
-5. do not republish third-party bodies/images without rights.
+Before activation:
+1. verify the machine-readable endpoint and freshness;
+2. review access/reuse/attribution terms;
+3. prefer stable canonical URLs and timestamps;
+4. verify that summaries are sufficient for classification;
+5. keep publication subject to editorial source review.
 
-## Priority families
-
-- odd/local curiosities
-- records
-- contests and festivals
-- animals
-- entertainment and public events
-- food and unusual competitions
-- technology curiosities
-
-Guinness World Records is a strong discovery/reference source, but its public site content is protected by copyright and no official RSS endpoint was verified in this pass, so it is not scraped automatically in v0.2.
+Discovery breadth does not bypass Scout or editorial review.

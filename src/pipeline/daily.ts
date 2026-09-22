@@ -1,10 +1,12 @@
-import { OpenAIScout, type AiUsageDiagnostics } from "../ai/scout.js";
-import { OpenAIEditor, type GameCardDraft } from "../ai/editor.js";
+import { OpenAIScout, SCOUT_BATCH_LIMIT, type AiUsageDiagnostics } from "../ai/scout.js";
+import { OpenAIEditor, EDITOR_BATCH_LIMIT, type GameCardDraft } from "../ai/editor.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
 import { diversifyQueue } from "./diversity.js";
+import type { ContentStore } from "../store/content-store.js";
+import { editionDateFor } from "../time/edition-date.js";
 
-const DEFAULT_SCOUT_LIMIT = 30;
+const DEFAULT_SCOUT_LIMIT = SCOUT_BATCH_LIMIT;
 
 function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
   const at = a.publishedAt ? Date.parse(a.publishedAt) : 0;
@@ -41,22 +43,49 @@ function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): A
 
 export interface DailyQueueReport {
   collection: Omit<CollectionReport, "candidates">;
+  previouslyProcessed: number;
   scouted: number;
+  scoutOmittedArticleIds: string[];
   editorEligible: number;
+  editorSubmitted: number;
+  editorOmittedArticleIds: string[];
   edited: number;
   ai: { scout: AiUsageDiagnostics; editor: AiUsageDiagnostics; totalEstimatedCostUsd: number };
   cards: GameCardDraft[];
   queue: Array<{ candidate: ArticleCandidate; scout: ScoutResult }>;
+  persistence?: { runId: string; editionId?: string; editionDate: string; newCardIds: string[]; editionCardIds: string[] };
 }
 
-export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<DailyQueueReport> {
+export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT, store?: ContentStore): Promise<DailyQueueReport> {
+  const editionDate = store ? editionDateFor() : undefined;
+  if (store && editionDate) {
+    const existingEdition = await store.getEdition(editionDate);
+    if (existingEdition && existingEdition.status !== "draft") {
+      throw new Error(`Edition ${editionDate} is ${existingEdition.status}; generation is closed`);
+    }
+  }
+
   const collection = await collect();
-  const scoutLimit = Math.max(1, Math.min(limit, 30));
-  const candidates = selectScoutCandidates(collection.candidates, scoutLimit);
+  const scoutLimit = Math.max(1, Math.min(limit, SCOUT_BATCH_LIMIT));
+  const processedIds = store
+    ? await store.findProcessedCandidateIds(collection.candidates)
+    : new Set<string>();
+  const unseenCandidates = collection.candidates.filter(candidate => !processedIds.has(candidate.id));
+  const candidates = selectScoutCandidates(unseenCandidates, scoutLimit);
 
   const scout = new OpenAIScout();
   const batch = await scout.classifyDetailed(candidates);
   const results = batch.results;
+  const candidateIds = new Set(candidates.map(candidate => candidate.id));
+  const unexpectedScoutIds = results.map(result => result.articleId).filter(id => !candidateIds.has(id));
+  if (unexpectedScoutIds.length > 0) {
+    throw new Error(`Scout returned article IDs that were not submitted: ${unexpectedScoutIds.join(", ")}`);
+  }
+  const returnedScoutIds = new Set(results.map(result => result.articleId));
+  const scoutOmittedArticleIds = candidates.map(candidate => candidate.id).filter(id => !returnedScoutIds.has(id));
+  if (scoutOmittedArticleIds.length > 0) {
+    throw new Error(`Scout omitted submitted article IDs: ${scoutOmittedArticleIds.join(", ")}`);
+  }
   const byId = new Map(candidates.map(candidate => [candidate.id, candidate]));
 
   const rankedQueue = results
@@ -74,16 +103,79 @@ export async function buildDailyQueue(limit = DEFAULT_SCOUT_LIMIT): Promise<Dail
   const queue = diversifyQueue(rankedQueue);
   const editor = new OpenAIEditor();
   const editorEligible = queue.filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED").length;
-  const edited = await editor.draft(queue);
+  const editorSubmittedItems = queue
+    .filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED")
+    .slice(0, EDITOR_BATCH_LIMIT);
+  const edited = await editor.draft(editorSubmittedItems);
+  const submittedIds = new Set(editorSubmittedItems.map(item => item.candidate.id));
+  const returnedIds = new Set(edited.cards.map(card => card.articleId));
+  const editorOmittedArticleIds = editorSubmittedItems
+    .map(item => item.candidate.id)
+    .filter(id => !returnedIds.has(id));
+  const unexpectedEditorIds = edited.cards
+    .map(card => card.articleId)
+    .filter(id => !submittedIds.has(id));
+  if (unexpectedEditorIds.length > 0) {
+    throw new Error(`Editor returned article IDs that were not submitted: ${unexpectedEditorIds.join(", ")}`);
+  }
+  const editorInputById = new Map(editorSubmittedItems.map(item => [item.candidate.id, item]));
+  const unsupportedEditorModes = edited.cards.filter(card => {
+    const input = editorInputById.get(card.articleId);
+    return !input || !input.scout.modes.includes(card.mode);
+  });
+  if (unsupportedEditorModes.length > 0) {
+    throw new Error(
+      `Editor selected modes not supported by Scout: ${unsupportedEditorModes
+        .map(card => `${card.articleId}:${card.mode}`)
+        .join(", ")}`
+    );
+  }
   const totalEstimatedCostUsd = batch.usage.estimatedCostUsd + edited.usage.estimatedCostUsd;
   const { candidates: _ignored, ...collectionSummary } = collection;
+
+  let persistence: DailyQueueReport["persistence"];
+  if (store && candidates.length > 0) {
+    const saved = await store.saveCompletedRun({
+      collection: collectionSummary,
+      candidates,
+      scoutResults: results,
+      cards: edited.cards,
+      ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd }
+    });
+    if (!editionDate) throw new Error("Edition date was not initialized for persisted generation");
+    if (saved.cardIds.length > 0) {
+      const edition = await store.appendDraftEdition(editionDate, saved.cardIds);
+      persistence = {
+        runId: saved.runId,
+        editionId: edition.id,
+        editionDate,
+        newCardIds: saved.cardIds,
+        editionCardIds: edition.cardIds
+      };
+    } else {
+      const edition = await store.getEdition(editionDate);
+      persistence = {
+        runId: saved.runId,
+        ...(edition ? { editionId: edition.id } : {}),
+        editionDate,
+        newCardIds: [],
+        editionCardIds: edition?.cardIds ?? []
+      };
+    }
+  }
+
   return {
     collection: collectionSummary,
+    previouslyProcessed: processedIds.size,
     scouted: candidates.length,
+    scoutOmittedArticleIds,
     editorEligible,
+    editorSubmitted: editorSubmittedItems.length,
+    editorOmittedArticleIds,
     edited: edited.cards.length,
     ai: { scout: batch.usage, editor: edited.usage, totalEstimatedCostUsd },
     cards: edited.cards,
-    queue
+    queue,
+    ...(persistence ? { persistence } : {})
   };
 }

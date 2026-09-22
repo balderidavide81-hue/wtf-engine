@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import type { ArticleCandidate } from "../domain/types.js";
 import type { NewsSource } from "./index.js";
+import { canonicalizeHttpUrl } from "../domain/url.js";
 
 export interface RssSourceConfig {
   name: string;
@@ -11,7 +12,19 @@ export interface RssSourceConfig {
 
 type FeedItem = Record<string, unknown>;
 
+const MAX_RSS_RESPONSE_CHARS = 2_000_000;
+const MAX_RSS_ITEMS = 100;
+const MAX_TITLE_CHARS = 600;
+const MAX_SUMMARY_CHARS = 4_000;
+
 function text(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const candidate = text(item);
+      if (candidate) return candidate;
+    }
+    return undefined;
+  }
   if (typeof value === "string") return value.trim() || undefined;
   if (typeof value === "number") return String(value);
   if (value && typeof value === "object") {
@@ -19,6 +32,13 @@ function text(value: unknown): string | undefined {
     return text(obj["#text"]) ?? text(obj["@_href"]);
   }
   return undefined;
+}
+
+function cleanFeedText(value: unknown, maxChars: number): string | undefined {
+  const raw = text(value);
+  if (!raw) return undefined;
+  const cleaned = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return cleaned ? cleaned.slice(0, maxChars) : undefined;
 }
 
 function itemsFrom(parsed: Record<string, any>): FeedItem[] {
@@ -35,24 +55,37 @@ export class RssSource implements NewsSource {
 
   async fetchCandidates(): Promise<ArticleCandidate[]> {
     const response = await fetch(this.config.url, {
-      headers: { "user-agent": "wtf-engine/0.2 (+editorial prototype)" }
+      headers: { "user-agent": "wtf-engine/0.5 (+editorial prototype)" },
+      signal: AbortSignal.timeout(10_000)
     });
     if (!response.ok) throw new Error(`${this.name}: HTTP ${response.status}`);
+    const declaredLength = Number(response.headers.get("content-length") ?? "0");
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_RSS_RESPONSE_CHARS * 2) {
+      throw new Error(`${this.name}: RSS response declares excessive size`);
+    }
 
     const xml = await response.text();
+    if (xml.length > MAX_RSS_RESPONSE_CHARS) {
+      throw new Error(`${this.name}: RSS response exceeds size limit`);
+    }
     const parsed = new XMLParser({ ignoreAttributes: false }).parse(xml) as Record<string, any>;
 
-    return itemsFrom(parsed).flatMap((item, index) => {
-      const title = text(item.title);
+    return itemsFrom(parsed).slice(0, MAX_RSS_ITEMS).flatMap(item => {
+      const title = cleanFeedText(item.title, MAX_TITLE_CHARS);
       const link = text(item.link) ?? text(item.guid);
       if (!title || !link) return [];
 
+      const canonicalLink = canonicalizeHttpUrl(link);
+      if (!canonicalLink) return [];
       return [{
-        id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${index}:${link}`,
+        id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${canonicalLink}`,
         sourceName: this.name,
-        sourceUrl: link,
+        sourceUrl: canonicalLink,
         title,
-        summary: text(item.description) ?? text(item.summary) ?? text(item.content),
+        summary:
+          cleanFeedText(item.description, MAX_SUMMARY_CHARS)
+          ?? cleanFeedText(item.summary, MAX_SUMMARY_CHARS)
+          ?? cleanFeedText(item.content, MAX_SUMMARY_CHARS),
         publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
         language: this.config.language,
         country: this.config.country

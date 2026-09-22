@@ -4,6 +4,6 @@ export default function handler(_req: VercelRequest, res: VercelResponse) {
   res.status(200).json({
     ok: true,
     service: "wtf-engine",
-    version: "0.1.0"
+    version: "0.5.0"
   });
 }

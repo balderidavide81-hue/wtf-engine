@@ -1,32 +1,60 @@
 # WTF Engine
 
-Experimental editorial engine for turning real-world news and curiosities into lightweight playable content.
+WTF Engine is an editorial backend that turns real-world curiosities into lightweight playable content.
 
-## Phase 0 — content validation
-
-The first milestone is deliberately small: validate that an automated pipeline can surface genuinely fun, surprising and playable stories every day before building the consumer app.
-
-Initial pipeline:
+## Current v0.5 pipeline
 
 ```
-sources -> ingest -> deterministic filters -> Luna Scout -> verification -> editorial queue
+RSS sources
+  -> deterministic filtering / canonical dedupe
+  -> Luna Scout
+  -> Luna Editor
+  -> Neon content store
+  -> authenticated editorial review
+  -> published daily edition
+  -> public read-only gameplay feed
 ```
 
-Target validation gate: for 7 consecutive days, automatically surface at least 5 candidates per day that are worth publishing/playing.
+The product goal remains deliberately narrow: prove that the engine can surface at least five genuinely playable stories per day for seven consecutive days before investing heavily in the consumer app.
 
-## Planned modules
+## Safety and publication boundary
 
-- `src/ingest/` — source collectors
-- `src/filters/` — deterministic filtering and deduplication
-- `src/ai/` — Luna Scout / Editor / QA
-- `src/verify/` — evidence and source verification
-- `src/api/` — backend endpoints
-- `prompts/` — versioned AI prompts
-- `evals/` — golden cases and production failures
-- `db/` — database schema/migrations
-- `dashboard/` — lightweight editorial review UI
-- `docs/` — architecture and decisions
+Scout's `SUPPORTED` label means the supplied feed material supports the classification. It is **not** an independent fact-check.
 
-## Status
+The current publication gate is human editorial review with the original source URL visible in `/api/editorial`. `src/verify/` is still only the contract for a future independent verification layer.
 
-Repository initialized. No production app or live pipeline yet.
+## API surfaces
+
+- `GET /api/health` — public health check.
+- `GET /api/collect` — internal source diagnostics; requires `GENERATION_API_TOKEN`.
+- `POST /api/scout` — internal paid Scout diagnostics; requires `GENERATION_API_TOKEN`.
+- `POST /api/daily?limit=30` — internal paid generation/persistence run; requires `GENERATION_API_TOKEN` and `DATABASE_URL`.
+- `GET|POST /api/editorial?date=YYYY-MM-DD` — internal review/publish/adjudication surface; requires `EDITORIAL_API_TOKEN`.
+- `GET /api/gameplay-daily?date=YYYY-MM-DD` — public read-only published edition.
+
+Generation and editorial endpoints are server-side operational surfaces. Their bearer tokens must never be embedded in a mobile/web client.
+
+## Repository layout
+
+- `api/` — Vercel serverless endpoints.
+- `src/ingest/` — RSS collection.
+- `src/filters/` — deterministic filtering and deduplication.
+- `src/ai/` — Scout and Editor.
+- `src/pipeline/` — daily orchestration and diversity.
+- `src/store/` — content-store contract and Neon adapter.
+- `src/verify/` — future independent verification contract.
+- `db/migrations/` — additive database migrations.
+- `prompts/` — versioned prompt reference material.
+- `evals/` — golden cases and failure regression library.
+- `docs/` — architecture, audit, rollout and content-gate notes.
+
+## Current rollout status
+
+The v0.5 content-store work is staged on `feature/0.5-content-store`. The migration and production configuration are intentionally not applied by source-only audit work.
+
+Before activation, use:
+
+- `docs/V05_SOURCE_AUDIT_20260921.md`
+- `docs/V05_LIVE_ROLLOUT_CHECKLIST.md`
+
+The first live activation should be one controlled migration, one coherent production deployment and one single-flight generation run.
