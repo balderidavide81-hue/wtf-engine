@@ -1,6 +1,6 @@
 name: Validate v0.6.11 regional world sources
 
-# Final gate after Motor1 Argentina timeout tuning
+# Final gate for Motor1 Germany Bizarr + German language support
 
 on:
   pull_request:
@@ -26,9 +26,17 @@ jobs:
           const { collect } = await import('./.tmp-build/src/ingest/collect.js');
           const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
           const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
+          const { detectContentLanguage } = await import('./.tmp-build/src/ingest/language.js');
+
+          const detectedGerman = detectContentLanguage(
+            'Dieser alte Fiat Panda ist nur 50 Zentimeter breit',
+            'Mit solch einem Auto kommt man in Italien überall durch.',
+            'en'
+          );
+          if (detectedGerman !== 'de') throw new Error('German language detection failed: ' + detectedGerman);
 
           const expected = [
-            'Motor1 Argentina Curiosidad'
+            'Motor1 Germany Bizarr'
           ];
 
           const report = await collect();
