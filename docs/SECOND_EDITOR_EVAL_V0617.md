@@ -224,13 +224,33 @@ The current output is suitable for persisted **draft/review** cards, but automat
 remain gated until semantic hook leakage and batch-level answer balancing receive one final hardening
 pass.
 
+## v0.6.18 final hardening
+
+The first three recommended fixes were implemented source-only:
+
+- deterministic answer balancing now operates across the whole generated batch rather than hashing each
+  card independently;
+- prompt guidance explicitly forbids semantic/paraphrased answer leakage in hooks;
+- prompt guidance explicitly forbids unsupplied evaluative factual adjectives such as
+  popular/famous/iconic/legendary.
+
+Validation PASS:
+
+- 11 synthetic four-option MULTIPLE_CHOICE cards distributed 3 / 2 / 3 / 3;
+- 3 TRUE_FALSE cards distributed 2 / 1;
+- correct answers remained correct after rotation;
+- card order remained stable;
+- PREDICT cards were unchanged;
+- Node 22 typecheck passed.
+
+Prompt version: `editor/inline-v0.8-final-hardening`.
+
 ## Recommended next step
 
-Before enabling normal persisted Editor drafts:
+Run a small targeted live regression on the two remaining real defects from this evaluation:
 
-1. replace per-card answer-position hashing with deterministic batch-level balancing;
-2. strengthen the prompt against semantic/paraphrased answer leakage;
-3. explicitly forbid unsupplied evaluative adjectives;
-4. run a small targeted regression on the Bolivian wildcat, Slim Jim, TRUE_FALSE and PREDICT cases;
-5. if that passes, enable the normal daily pipeline to persist generated cards as drafts for editorial
-   review, not automatic publication.
+- Bolivian wildcat semantic hook leakage;
+- Slim Jim unsupplied `popolare` adjective.
+
+If those regressions pass, enable the normal daily pipeline to persist generated cards as **drafts for
+editorial review**, not automatic publication.
