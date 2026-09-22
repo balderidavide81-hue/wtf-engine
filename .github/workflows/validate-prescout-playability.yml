@@ -46,6 +46,16 @@ jobs:
             }
           }
 
+          const accentedPolitics = preScoutPlayability({
+            id: 'pt-politics',
+            sourceName: 'synthetic',
+            sourceUrl: 'https://example.com/pt-politics',
+            title: 'Política e eleições: por que partidos recorrem ao populismo'
+          });
+          if (!accentedPolitics.negativeSignals.includes('policy-politics')) {
+            throw new Error('accent-insensitive politics signal failed');
+          }
+
           const report = await collect();
           if (report.kept < 30) throw new Error(`collector kept only ${report.kept} candidates`);
           const selected = selectScoutCandidates(report.candidates, 30);
