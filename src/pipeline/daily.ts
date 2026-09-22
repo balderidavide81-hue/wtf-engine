@@ -5,6 +5,7 @@ import { collect, type CollectionReport } from "../ingest/collect.js";
 import { diversifyQueue, editorialLane } from "./diversity.js";
 import type { ContentStore } from "../store/content-store.js";
 import { editionDateFor } from "../time/edition-date.js";
+import { sourceGeography } from "../geo/extract.js";
 
 const DEFAULT_SCOUT_LIMIT = SCOUT_BATCH_LIMIT;
 
@@ -31,7 +32,7 @@ function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): A
     perSource.set(candidate.sourceName, (perSource.get(candidate.sourceName) ?? 0) + 1);
     const lane = editorialLane(candidate);
     perLane.set(lane, (perLane.get(lane) ?? 0) + 1);
-    const country = candidate.country?.trim().toUpperCase() || "UNKNOWN";
+    const country = sourceGeography(candidate);
     perCountry.set(country, (perCountry.get(country) ?? 0) + 1);
   };
 
@@ -39,7 +40,7 @@ function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): A
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     const lane = editorialLane(candidate);
-    const country = candidate.country?.trim().toUpperCase() || "UNKNOWN";
+    const country = sourceGeography(candidate);
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
     if ((perLane.get(lane) ?? 0) >= laneCap) continue;
     if ((perCountry.get(country) ?? 0) >= countryCap) continue;
@@ -50,7 +51,7 @@ function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): A
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
-    const country = candidate.country?.trim().toUpperCase() || "UNKNOWN";
+    const country = sourceGeography(candidate);
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
     if ((perCountry.get(country) ?? 0) >= countryCap) continue;
     add(candidate);
