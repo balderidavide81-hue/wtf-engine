@@ -1,6 +1,9 @@
 name: Probe real collector v0.6.5
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - feature/0.6.5-global-multilingual-sources
