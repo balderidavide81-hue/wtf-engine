@@ -1,4 +1,4 @@
-type SupportedContentLanguage = "en" | "it" | "fr" | "es" | "pt-BR" | "id" | "de";
+type SupportedContentLanguage = "en" | "it" | "fr" | "es" | "pt-BR" | "id" | "de" | "tr";
 
 interface LanguageRule {
   language: SupportedContentLanguage;
@@ -41,6 +41,11 @@ const RULES: LanguageRule[] = [
     language: "de",
     strong: new Set(["der","die","das","des","dem","den","einer","einem","einen","nicht","wird","sind","über","für","zur","zum"]),
     common: new Set(["und","mit","von","auf","aus","bei","ein","eine","im","in"])
+  },
+  {
+    language: "tr",
+    strong: new Set(["icin","ile","olan","olarak","daha","cok","degil","sonra","once","turkiye","otomobil","arac"]),
+    common: new Set(["ve","bir","bu","da","de","ama","gibi","ne","mi","icin","ile"])
   }
 ];
 
