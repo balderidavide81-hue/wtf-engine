@@ -1,0 +1,59 @@
+name: Snapshot v0.6.15 Editor inputs
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Capture exact 16 KEEP candidates
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
+
+          const ids = [
+            "upi-odd-news:https://www.upi.com/Odd_News/2026/09/21/emu-florida-polk-parkway/6991790000125/",
+            "upi-odd-news:https://www.upi.com/Odd_News/2026/09/18/long-island-alligator-holtsville-ecology-center/8451789746179/",
+            "upi-odd-news:https://www.upi.com/Odd_News/2026/09/17/santa-fe-parade-horse-chase/8301789655823/",
+            "upi-odd-news:https://www.upi.com/Odd_News/2026/09/21/Guinness-World-Records-David-Rush-flipping-cups/2671790001715/",
+            "upi-odd-news:https://www.upi.com/Odd_News/2026/09/17/guinness-world-records-slim-jim/1191789667547/",
+            "upi-odd-news:https://www.upi.com/Odd_News/2026/09/16/Guinness-World-Records-salt-and-pepper-packets/9321789579951/",
+            "sciencedaily-strange-offbeat:https://www.sciencedaily.com/releases/2026/09/260917003712.htm",
+            "sciencedaily-strange-offbeat:https://www.sciencedaily.com/releases/2026/09/260919031033.htm",
+            "sciencedaily-strange-offbeat:https://www.sciencedaily.com/releases/2026/09/260918024816.htm",
+            "smithsonian-smart-news:https://www.smithsonianmag.com/smart-news/three-wild-dogs-made-a-record-breaking-trek-across-zambia-traveling-more-than-2500-miles-in-search-of-mates-180989505/",
+            "motor1-france-insolite:https://fr.motor1.com/news/786091/renault-5-1982-abandonnee-43-ans-retrouvee-encheres/",
+            "smithsonian-smart-news:https://www.smithsonianmag.com/smart-news/a-geologist-in-california-found-something-strange-sticking-out-of-a-creek-reverse-image-search-told-her-it-was-an-ancient-mastodon-tooth-180989504/",
+            "smithsonian-smart-news:https://www.smithsonianmag.com/smart-news/princess-dianas-revenge-dress-is-heading-to-auction-for-the-first-time-in-nearly-30-years-180989492/",
+            "insideevs-brasil-curiosidades:https://insideevs.uol.com.br/news/807205/noruega-ja-e-quase-eletrica/",
+            "phys-org-plants-animals:https://phys.org/news/2026-09-bolivia-tilcayo-tiger-cat-wildcat.html",
+            "phys-org-plants-animals:https://phys.org/news/2026-09-species-egg-snake-ethiopia-harenna.html"
+          ];
+
+          const report = await collect();
+          const byId = new Map(report.candidates.map(candidate => [candidate.id, candidate]));
+          const snapshot = ids.map(id => byId.get(id) ?? null);
+          const missing = ids.filter((id, index) => !snapshot[index]);
+          console.log('EDITOR_INPUT_SNAPSHOT=' + JSON.stringify({
+            collection: {
+              sourceCount: report.sourceCount,
+              fetched: report.fetched,
+              kept: report.kept,
+              errors: report.errors
+            },
+            missing,
+            candidates: snapshot
+          }));
+          if (missing.length) throw new Error('Missing captured candidates: ' + missing.join(', '));
+          NODE
