@@ -6,17 +6,12 @@ import { diversifyQueue, editorialLane } from "./diversity.js";
 import type { ContentStore } from "../store/content-store.js";
 import { editionDateFor } from "../time/edition-date.js";
 import { sourceGeography } from "../geo/extract.js";
+import { comparePreScoutPriority } from "./playability.js";
 
 const DEFAULT_SCOUT_LIMIT = SCOUT_BATCH_LIMIT;
 
-function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
-  const at = a.publishedAt ? Date.parse(a.publishedAt) : 0;
-  const bt = b.publishedAt ? Date.parse(b.publishedAt) : 0;
-  return bt - at;
-}
-
 export function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): ArticleCandidate[] {
-  const sorted = [...candidates].sort(newestFirst);
+  const sorted = [...candidates].sort(comparePreScoutPriority);
   const selected: ArticleCandidate[] = [];
   const used = new Set<string>();
   const perSource = new Map<string, number>();
