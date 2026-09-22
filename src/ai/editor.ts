@@ -308,6 +308,7 @@ export class OpenAIEditor {
     }
 
     const balancedCards = parsed.cards.map(balanceResolvedAnswerPosition);
+    for (const card of balancedCards) validateCardDraft(card);
     return { cards: balancedCards, usage: makeUsage(response, model) };
   }
 }
