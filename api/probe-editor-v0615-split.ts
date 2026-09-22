@@ -18,12 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!process.env.DATABASE_URL) return res.status(503).json({ error: "persistence_not_configured" });
 
   const batch = Number(req.query.batch);
-  if (batch !== 1 && batch !== 2 && batch !== 3) {
-    return res.status(400).json({ error: "batch_must_be_1_2_or_3" });
+  if (![1, 2, 3, 4, 5].includes(batch)) {
+    return res.status(400).json({ error: "batch_must_be_1_to_5" });
   }
 
-  // batch=3 is a one-shot retry of the second half after the cardinality fix.
-  const start = batch === 1 ? 0 : 8;
+  // batch=4 and batch=5 re-run the two frozen halves after gameplay-quality hardening.
+  const start = (batch === 1 || batch === 4) ? 0 : 8;
   const items = editorProbeItems.slice(start, start + 8);
   if (items.length !== 8) return res.status(500).json({ error: "fixture_batch_size_invalid", batch, count: items.length });
 
