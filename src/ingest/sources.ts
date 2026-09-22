@@ -96,6 +96,15 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     categoryHint: "transport",
     mediaUsageStatus: "link-only"
   },
+  {
+    name: "AllAfrica Wildlife",
+    url: "https://allafrica.com/tools/headlines/rdf/wildlife/headlines.rdf",
+    language: "en",
+    country: "AFRICA",
+    discoverySource: "AllAfrica Wildlife",
+    categoryHint: "animals",
+    mediaUsageStatus: "link-only"
+  },
 
   // The Conversation operates local editions around the world and publishes
   // under Creative Commons. We still ingest only discovery metadata and keep
