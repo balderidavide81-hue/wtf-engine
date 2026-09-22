@@ -1,4 +1,3 @@
-import type { GameCategory } from "../domain/types.js";
 import type { RssSourceConfig } from "./rss.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
 
@@ -12,35 +11,54 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
   { name: "New Atlas Transport", url: "https://newatlas.com/transport/index.rss", language: "en", country: "GLOBAL", categoryHint: "transport", mediaUsageStatus: "unreviewed" }
 ];
 
-function gdeltSource(name: string, query: string, categoryHint: GameCategory): RssSourceConfig {
+const GDELT_DISCOVERY_QUERY = [
+  '"escaped animal"',
+  '"loose animal"',
+  '"unusual animal"',
+  '"world record"',
+  '"record attempt"',
+  '"bizarre sport"',
+  '"unusual sport"',
+  '"mascot incident"',
+  '"match interrupted"',
+  '"pitch invasion"',
+  '"strange concert"',
+  '"unusual movie"',
+  '"celebrity surprise"',
+  '"museum discovery"',
+  '"art auction"',
+  '"unusual job"',
+  '"bizarre job"',
+  '"workplace incident"',
+  '"robot worker"',
+  '"delivery robot"',
+  '"found after"',
+  '"returned after"',
+  '"lost for"',
+  '"hidden for"',
+  '"sold for"'
+].join(" OR ");
+
+function gdeltGlobalRadar(): RssSourceConfig[] {
+  if (process.env.WTF_ENABLE_GDELT === "0") return [];
+
   const url = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
-  url.searchParams.set("query", query);
+  url.searchParams.set("query", `(${GDELT_DISCOVERY_QUERY})`);
   url.searchParams.set("mode", "artlist");
-  url.searchParams.set("maxrecords", "30");
+  url.searchParams.set("maxrecords", "100");
   url.searchParams.set("timespan", "48h");
   url.searchParams.set("sort", "datedesc");
   url.searchParams.set("format", "rss");
-  return {
-    name,
+
+  return [{
+    name: "GDELT WTF Global Radar",
     url: url.toString(),
     country: "GLOBAL",
-    discoverySource: name,
-    categoryHint,
+    discoverySource: "GDELT WTF Global Radar",
     sourceNameStrategy: "item-or-hostname",
     mediaUsageStatus: "unreviewed",
     timeoutMs: 30_000
-  };
-}
-
-function gdeltSources(): RssSourceConfig[] {
-  if (process.env.WTF_ENABLE_GDELT === "0") return [];
-  return [
-    gdeltSource("GDELT WTF Animals & Local Oddities", '("escaped animal" OR "loose animal" OR "animal rescue" OR "zoo escape" OR "wildlife rescue" OR "unusual animal")', "animals"),
-    gdeltSource("GDELT WTF Sports", '("bizarre sport" OR "unusual sport" OR "sports record" OR "mascot incident" OR "match interrupted" OR "pitch invasion" OR "stadium stunt")', "sports"),
-    gdeltSource("GDELT WTF Entertainment & Culture", '("bizarre film" OR "unusual movie" OR "strange concert" OR "celebrity surprise" OR "museum discovery" OR "art auction")', "culture"),
-    gdeltSource("GDELT WTF Work & Technology", '("unusual job" OR "bizarre job" OR "workplace incident" OR "robot worker" OR "delivery robot" OR "restaurant robot" OR "office record")', "work"),
-    gdeltSource("GDELT WTF Records & Lost-Found", '("world record" OR "found after" OR "returned after" OR "lost for" OR "hidden for" OR "sold for")', "records")
-  ];
+  }];
 }
 
 export function sourcesFromEnv(): RssSourceConfig[] {
@@ -49,11 +67,18 @@ export function sourcesFromEnv(): RssSourceConfig[] {
     const [name, rawUrl, language, country] = entry.split("|").map(v => v.trim());
     const url = rawUrl ? canonicalizeHttpUrl(rawUrl) : null;
     if (!name || !url) return [];
-    return [{ name, url, language: language || undefined, country: country || undefined, discoverySource: name, mediaUsageStatus: "unreviewed" }];
+    return [{
+      name,
+      url,
+      language: language || undefined,
+      country: country || undefined,
+      discoverySource: name,
+      mediaUsageStatus: "unreviewed"
+    }];
   });
 
   const seen = new Set<string>();
-  return [...DIRECT_SOURCES, ...gdeltSources(), ...extra].filter(source => {
+  return [...DIRECT_SOURCES, ...gdeltGlobalRadar(), ...extra].filter(source => {
     if (seen.has(source.url)) return false;
     seen.add(source.url);
     return true;

@@ -14,15 +14,12 @@ WTF Engine uses direct publisher feeds plus discovery-radar feeds.
 
 ## Active discovery radar
 
-GDELT DOC 2.0 ArticleList RSS is split into bounded query lanes for:
+GDELT DOC 2.0 ArticleList RSS is queried once per collection cycle through one bounded global radar.
+The returned stories are classified locally into editorial lanes such as animals/local oddities,
+sports, entertainment/culture, work/technology and records/lost-found.
 
-- animals/local oddities;
-- sports;
-- entertainment/culture;
-- work/technology;
-- records/lost-found.
-
-GDELT is not presented to players as the source. The underlying publisher URL remains the
+This replaces the earlier five-request design after production collection tests returned HTTP 429
+from GDELT. GDELT is not presented to players as the source. The underlying publisher URL remains the
 attribution/verification target.
 
 ## Ingestion rules

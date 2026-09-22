@@ -13,25 +13,15 @@ export interface CollectionReport {
   bySource: Array<{ source: string; fetched: number }>;
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export async function collect(): Promise<CollectionReport> {
   const sources = sourcesFromEnv().map(config => new RssSource(config));
 
-  // GDELT explicitly rate-limits its hosted APIs. Avoid a five-request burst from
-  // one serverless invocation while keeping normal publisher feeds fully parallel.
-  let gdeltOrdinal = 0;
-  const fetches = sources.map(source => {
-    if (!source.name.startsWith("GDELT ")) return source.fetchCandidates();
-    const startDelayMs = gdeltOrdinal++ * 1_500;
-    return (async () => {
-      if (startDelayMs > 0) await delay(startDelayMs);
-      return source.fetchCandidates();
-    })();
-  });
-  const settled = await Promise.allSettled(fetches);
+  // v0.6.2 deliberately uses one GDELT request per collection cycle.
+  // Category/lane assignment happens locally after discovery, so we do not
+  // multiply requests to a rate-limited external API.
+  const settled = await Promise.allSettled(
+    sources.map(source => source.fetchCandidates())
+  );
 
   const raw: ArticleCandidate[] = [];
   const errors: CollectionReport["errors"] = [];
@@ -43,7 +33,10 @@ export async function collect(): Promise<CollectionReport> {
       raw.push(...result.value);
       bySource.push({ source, fetched: result.value.length });
     } else {
-      errors.push({ source, error: result.reason instanceof Error ? result.reason.message : String(result.reason) });
+      errors.push({
+        source,
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+      });
       bySource.push({ source, fetched: 0 });
     }
   });
