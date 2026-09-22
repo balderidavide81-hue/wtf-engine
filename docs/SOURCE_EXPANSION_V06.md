@@ -66,3 +66,6 @@ Prefer events with a future deadline and reliable resolution source:
 
 Do not create PREDICT merely because something occurs in the future. Outcomes must be objective,
 mutually exclusive and resolvable from named evidence.
+
+
+See also: `docs/PREDICT_SOURCE_MATRIX_V07.md` for the first authoritative structured/manual resolution source matrix.
