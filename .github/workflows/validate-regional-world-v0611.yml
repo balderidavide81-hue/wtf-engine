@@ -1,6 +1,6 @@
 name: Validate v0.6.11 regional world sources
 
-# Re-run after Clarín timeout/retry tuning
+# Final gate after regional quality pruning + The Tokyo replacement
 
 on:
   pull_request:
@@ -29,11 +29,7 @@ jobs:
 
           const expected = [
             'Clarin Autos',
-            'TimesLIVE Lifestyle',
-            'TimesLIVE Motoring',
-            'The Standard Magazines',
-            'The Standard Entertainment',
-            'Global Voices Japan'
+            'The Tokyo Japan Discovery'
           ];
 
           const report = await collect();
