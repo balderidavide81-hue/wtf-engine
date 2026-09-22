@@ -1,5 +1,6 @@
 -- WTF Engine v0.6 media/feed foundation.
--- Source-only migration. Prepare and validate before applying to production.
+-- Applied to Neon project autumn-violet-57425012 / main on 2026-09-22 after
+-- PostgreSQL 18 idempotency validation and temporary-branch verification.
 
 create extension if not exists pg_trgm;
 

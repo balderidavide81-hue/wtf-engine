@@ -4,21 +4,19 @@ WTF Engine turns real-world curiosities into lightweight playable content.
 
 ## Production baseline
 
-v0.5 is live:
+v0.6 is live:
 
 ```
 publisher/discovery feeds
-  -> deterministic filters and canonical dedupe
+  -> deterministic filters, canonical dedupe and story anti-repeat
   -> Luna Scout
   -> Luna Editor
   -> Neon
   -> authenticated editorial review
-  -> published gameplay
+  -> chronological public gameplay feed
 ```
 
-## v0.6 source/media/feed work
-
-`feature/0.6-rolling-sources-media` adds:
+Current v0.6 capabilities:
 
 - GDELT topical discovery for animals/local oddities, sport, entertainment/culture,
   work/technology and records/lost-found;
@@ -40,7 +38,7 @@ usage is approved.
 - `POST /api/daily?limit=30` — generation token
 - `GET|POST /api/editorial?date=YYYY-MM-DD` — editorial token
 - `GET /api/gameplay-daily?date=YYYY-MM-DD`
-- `GET /api/feed?limit=30&before=<ISO timestamp>` — requires v0.6 schema
+- `GET /api/feed?limit=30&before=<ISO timestamp>`
 
-Do not apply v0.6 schema or merge production until TypeScript and PostgreSQL
-migration/idempotency validation passes.
+The v0.6 schema migration was validated on PostgreSQL 18, prepared on a temporary Neon branch,
+verified there and applied to the production Neon main branch before the v0.6 source merge.
