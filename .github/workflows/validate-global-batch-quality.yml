@@ -1,4 +1,4 @@
-name: Validate global batch quality
+name: Validate global batch quality v2
 
 on:
   pull_request:
@@ -25,6 +25,7 @@ jobs:
           const { collect } = await import('./.tmp-build/src/ingest/collect.js');
           const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
           const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
+          const { detectContentLanguage } = await import('./.tmp-build/src/ingest/language.js');
 
           const geoChecks = [
             ['New Mexico', extractEventGeography({title:'Horse escapes New Mexico parade in Santa Fe'}), 'US', 'New Mexico'],
@@ -61,6 +62,20 @@ jobs:
             throw new Error('debunk demotion fixture failed');
           }
 
+          const englishDetected = detectContentLanguage(
+            'Climate change also poses a threat to cultural heritage',
+            'Nearly half of the sites in Europe are now highly vulnerable to climate-related risks.',
+            'fr'
+          );
+          const frenchDetected = detectContentLanguage(
+            'Les populations africaines veulent des services climatiques adaptés',
+            'Les communautés locales demandent des informations qui répondent à leurs besoins et à leur territoire.',
+            'en'
+          );
+          if (englishDetected !== 'en' || frenchDetected !== 'fr') {
+            throw new Error(`content language fixture failed: ${englishDetected}/${frenchDetected}`);
+          }
+
           const report = await collect();
           if (report.kept < 30) throw new Error('live collector kept fewer than 30');
           const selected = selectScoutCandidates(report.candidates,30);
@@ -71,7 +86,8 @@ jobs:
           const countries=countBy(c=>c.sourceCountry??c.country);
           const languages=countBy(c=>c.language);
           const maxSource=Math.max(...Object.values(sources));
-          const maxCountry=Math.max(...Object.values(countries));
+          const concreteCountries=Object.fromEntries(Object.entries(countries).filter(([key])=>/^[A-Z]{2}$/.test(key)));
+          const maxCountry=Math.max(0,...Object.values(concreteCountries));
           const encoded=report.candidates.filter(c=>/&#(?:0*39|x0*27);/i.test(c.title));
           const mothers=report.candidates.find(c=>/Mother's urging leads Va\. woman/i.test(c.title));
           const tiger=selected.find(c=>/No tiger on the loose/i.test(c.title));
@@ -79,20 +95,20 @@ jobs:
 
           console.log('QUALITY_RESULT='+JSON.stringify({
             fetched:report.fetched,kept:report.kept,dropped:report.dropped,errors:report.errors,
-            sources,countries,languages,maxSource,maxCountry,
+            sources,countries,concreteCountries,languages,maxSource,maxCountry,
             encodedTitles:encoded.length,
             mothersTitle:mothers?.title??null,
             tigerSelected:Boolean(tiger),
             taorminaSelected:taormina.map(c=>c.title),
             selected:selected.map(c=>({
-              title:c.title,source:c.sourceName,language:c.language,
+              title:c.title,source:c.sourceName,language:c.language,sourceLanguage:c.sourceLanguage,
               sourceCountry:c.sourceCountry??c.country,eventCountry:c.eventCountry,
               eventLocation:c.eventLocation,playability:preScoutPlayability(c)
             }))
           }));
 
           if (maxSource > 6) throw new Error('source cap exceeded: '+maxSource);
-          if (maxCountry > 6) throw new Error('country cap exceeded: '+maxCountry);
+          if (maxCountry > 6) throw new Error('concrete country cap exceeded: '+maxCountry);
           if (encoded.length) throw new Error('HTML apostrophe entity still present');
           if (!mothers?.title.includes("Mother's")) throw new Error('apostrophe decode not observed');
           if (tiger) throw new Error('debunked tiger story still selected');
