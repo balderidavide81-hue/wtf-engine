@@ -24,6 +24,78 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     country: "GLOBAL",
     discoverySource: "Smithsonian Smart News",
     mediaUsageStatus: "link-only"
+  },
+
+  // Italy: Rai explicitly publishes title, summary and article URL by RSS and
+  // documents RSS syndication for third-party blogs. Treat all media as link-only.
+  {
+    name: "Rai Televideo Dall'Italia",
+    url: "https://www.televideo.rai.it/televideo/pub/rss140.xml",
+    language: "it",
+    country: "IT",
+    discoverySource: "Rai Televideo Dall'Italia",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "Rai Televideo Culture",
+    url: "https://www.televideo.rai.it/televideo/pub/rss160.xml",
+    language: "it",
+    country: "IT",
+    discoverySource: "Rai Televideo Culture",
+    categoryHint: "culture",
+    mediaUsageStatus: "link-only"
+  },
+
+  // The Conversation operates local editions around the world and publishes
+  // under Creative Commons. We still ingest only discovery metadata and keep
+  // third-party media link-only; the original source language is preserved.
+  {
+    name: "The Conversation France",
+    url: "https://theconversation.com/fr/articles.atom",
+    language: "fr",
+    country: "FR",
+    discoverySource: "The Conversation France",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "The Conversation Spain",
+    url: "https://theconversation.com/es/articles.atom",
+    language: "es",
+    country: "ES",
+    discoverySource: "The Conversation Spain",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "The Conversation Brasil",
+    url: "https://theconversation.com/br/articles.atom",
+    language: "pt-BR",
+    country: "BR",
+    discoverySource: "The Conversation Brasil",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "The Conversation Indonesia",
+    url: "https://theconversation.com/id/articles.atom",
+    language: "id",
+    country: "ID",
+    discoverySource: "The Conversation Indonesia",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "The Conversation Australia",
+    url: "https://theconversation.com/au/articles.atom",
+    language: "en",
+    country: "AU",
+    discoverySource: "The Conversation Australia",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "The Conversation Africa",
+    url: "https://theconversation.com/africa/articles.atom",
+    language: "en",
+    country: "AFRICA",
+    discoverySource: "The Conversation Africa",
+    mediaUsageStatus: "link-only"
   }
 ];
 
