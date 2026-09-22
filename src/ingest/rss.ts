@@ -12,6 +12,7 @@ export interface RssSourceConfig {
   categoryHint?: GameCategory;
   mediaUsageStatus?: MediaUsageStatus;
   sourceNameStrategy?: "config" | "item-or-hostname";
+  timeoutMs?: number;
 }
 
 type FeedItem = Record<string, unknown>;
@@ -133,7 +134,7 @@ export class RssSource implements NewsSource {
   async fetchCandidates(): Promise<ArticleCandidate[]> {
     const response = await fetch(this.config.url, {
       headers: { "user-agent": "wtf-engine/0.6 (+editorial discovery)" },
-      signal: AbortSignal.timeout(10_000)
+      signal: AbortSignal.timeout(this.config.timeoutMs ?? 10_000)
     });
     if (!response.ok) throw new Error(`${this.name}: HTTP ${response.status}`);
     const declaredLength = Number(response.headers.get("content-length") ?? "0");
