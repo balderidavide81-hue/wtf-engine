@@ -51,7 +51,7 @@ const POSITIVE_RULES: SignalRule[] = [
   {
     label: "animal-event",
     points: 8,
-    pattern: /\b(deer|emu|horse|chimp|alligator|fox|snake|shark|turtle|dog|cat|bird|rhino|hippo|elephant|lion|leopard|cheetah|giraffe|zebra|buffalo|crocodile|pangolin|hyena|baboon|gorilla|animale|cervo|cavallo|scimmia|volpe|serpente|requin|cheval|chien|chat|tortue|caballo|perro|gato|tiburón|tartaruga|cavalo|cachorro|gato|hiu|kura-kura|hewan|tier|hund|katze|schlange|hai|pferd|vogel)\b/iu
+    pattern: /\b(deer|emu|horse|chimp|alligator|fox|snake|shark|turtle|dog|cat|bird|rhino|hippo|elephant|lion|leopard|cheetah|giraffe|zebra|buffalo|crocodile|pangolin|hyena|baboon|gorilla|animale|cervo|cavallo|scimmia|volpe|serpente|requin|cheval|chien|chat|tortue|chameau|crocodile|éléphant|rhinocéros|hippopotame|léopard|guépard|girafe|zèbre|buffle|pangolin|hyène|babouin|gorille|baleine|okapi|scorpion|perdrix|oiseau|reptile|caballo|perro|gato|tiburón|tartaruga|cavalo|cachorro|gato|hiu|kura-kura|hewan|tier|hund|katze|schlange|hai|pferd|vogel)\b/iu
   }
 ];
 
