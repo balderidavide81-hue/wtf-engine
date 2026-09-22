@@ -71,6 +71,18 @@ the 30-item deterministic Scout selection without a forced language quota, expan
 coverage to seven languages: English, Italian, French, Spanish, Brazilian Portuguese, Indonesian and
 German.
 
+### Africa wildlife RDF source
+
+v0.6.12 adds AllAfrica Wildlife — English / pan-African / RSS 1.0 RDF.
+
+AllAfrica explicitly provides its RSS/headline modules at no charge for use on websites, conditioned
+on attribution and a link back to AllAfrica or the relevant feed page. WTF Engine keeps the source
+link, ingests only discovery metadata and does not republish article bodies or media.
+
+The feed receives no source-specific WTF bonus. It only carries the generic `animals` category hint
+and must earn a paid Scout slot through deterministic playability and geography diversity. The RSS
+adapter now supports RSS 1.0/RDF in addition to RSS 2.0 and Atom.
+
 Several technically healthy regional feeds were tested but deliberately not promoted because their
 current top items had weak deterministic WTF playability: TimesLIVE Lifestyle, TimesLIVE Motoring,
 The Standard Magazines, The Standard Entertainment and Global Voices Japan. Clarín Autos briefly
