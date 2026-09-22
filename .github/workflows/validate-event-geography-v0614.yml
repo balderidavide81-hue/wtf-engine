@@ -1,0 +1,127 @@
+name: Validate v0.6.14 event geography confidence
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Validate deterministic geography + live selected batch
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { extractEventGeography } = await import('./.tmp-build/src/geo/extract.js');
+          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
+          const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
+
+          const fixtures = [
+            {
+              name: 'headline wins over summary',
+              input: {
+                title: 'Namibia: Firefighters rescue crocodiles',
+                summary: 'Researchers later discussed similar work in China.'
+              },
+              expected: 'NA'
+            },
+            {
+              name: 'multi-country headline remains unresolved',
+              input: {
+                title: 'France and Italy launch unusual joint project',
+                summary: 'The ceremony took place in Paris.'
+              },
+              expected: undefined
+            },
+            {
+              name: 'broad regional prefix blocks incidental summary country',
+              input: {
+                title: "Afrique de l'Ouest: Biodiversité - un nouveau patron de la nature",
+                summary: 'The appointment was discussed during a meeting in China.'
+              },
+              expected: undefined
+            },
+            {
+              name: 'explicit summary location allowed',
+              input: {
+                title: 'Escaped emu surprises drivers',
+                summary: 'The unusual animal was spotted on a highway in Florida before being rescued.'
+              },
+              expected: 'US'
+            },
+            {
+              name: 'publisher base is not event geography',
+              input: {
+                title: 'Compact robot wins unusual design prize',
+                summary: 'The company is based in Japan and showed the robot at an international fair.'
+              },
+              expected: undefined
+            },
+            {
+              name: 'structured location wins',
+              input: {
+                title: 'Unexpected animal rescue',
+                summary: 'The story was later reported in France.',
+                locationHint: 'Taipei, Taiwan'
+              },
+              expected: 'TW'
+            },
+            {
+              name: 'title city still resolves',
+              input: {
+                title: 'Madrid hosts bizarre tiny-car parade',
+                summary: 'Thousands watched the event.'
+              },
+              expected: 'ES'
+            }
+          ];
+
+          for (const fixture of fixtures) {
+            const actual = extractEventGeography(fixture.input);
+            console.log('GEO_FIXTURE=' + JSON.stringify({ name: fixture.name, actual }));
+            if (actual.eventCountry !== fixture.expected) {
+              throw new Error(fixture.name + ': expected ' + String(fixture.expected) + ', got ' + String(actual.eventCountry));
+            }
+          }
+
+          const report = await collect();
+          const selected = selectScoutCandidates(report.candidates, 30);
+          const geo = selected.map(candidate => ({
+            title: candidate.title,
+            source: candidate.discoverySource ?? candidate.sourceName,
+            sourceCountry: candidate.sourceCountry ?? candidate.country,
+            eventCountry: candidate.eventCountry,
+            eventLocation: candidate.eventLocation,
+            language: candidate.language
+          }));
+          const counts = geo.reduce((acc, item) => {
+            const key = item.eventCountry ?? 'UNKNOWN';
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+          }, {});
+
+          console.log('GEO_LIVE=' + JSON.stringify({
+            sourceCount: report.sourceCount,
+            fetched: report.fetched,
+            kept: report.kept,
+            errors: report.errors,
+            eventCountryCounts: counts,
+            selected: geo
+          }));
+
+          const westAfricaFalsePositive = geo.find(item =>
+            /^Afrique de l['’]Ouest:/i.test(item.title) && item.eventCountry
+          );
+          if (westAfricaFalsePositive) {
+            throw new Error('Broad West Africa headline received a country: ' + JSON.stringify(westAfricaFalsePositive));
+          }
+          NODE
