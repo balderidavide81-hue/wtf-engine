@@ -1,0 +1,77 @@
+name: Research v0.6.12 Asia Africa sources
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Probe candidate feeds
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { XMLParser } = await import('fast-xml-parser');
+
+          async function probe(name, url) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 15000);
+            try {
+              const res = await fetch(url, {
+                headers: { 'user-agent': 'wtf-engine-source-research/0.6.12' },
+                redirect: 'follow',
+                signal: controller.signal
+              });
+              const text = await res.text();
+              const out = { name, url, status: res.status, contentType: res.headers.get('content-type'), bytes: text.length };
+              if (res.ok) {
+                try {
+                  const parsed = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' }).parse(text);
+                  const items = parsed?.rss?.channel?.item ?? parsed?.feed?.entry ?? [];
+                  const arr = Array.isArray(items) ? items : [items].filter(Boolean);
+                  out.items = arr.length;
+                  out.titles = arr.slice(0, 5).map(x => String(x?.title?.['#text'] ?? x?.title ?? '')).filter(Boolean);
+                } catch {
+                  out.links = [...text.matchAll(/href=["']([^"']*(?:rss|xml|feed)[^"']*)["']/gi)].slice(0, 20).map(m => m[1]);
+                }
+              }
+              console.log('PROBE=' + JSON.stringify(out));
+            } catch (error) {
+              console.log('PROBE=' + JSON.stringify({ name, url, error: error instanceof Error ? error.message : String(error) }));
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+
+          const candidates = [
+            ['SAnews Features', 'https://www.sanews.gov.za/features.xml'],
+            ['SAnews South Africa', 'https://www.sanews.gov.za/south-africa-news-stories.xml'],
+
+            ['AllAfrica Travel', 'https://allafrica.com/tools/headlines/rdf/travel/headlines.rdf'],
+            ['AllAfrica Environment', 'https://allafrica.com/tools/headlines/rdf/environment/headlines.rdf'],
+            ['AllAfrica Arts', 'https://allafrica.com/tools/headlines/rdf/arts/headlines.rdf'],
+            ['AllAfrica Entertainment', 'https://allafrica.com/tools/headlines/rdf/entertainment/headlines.rdf'],
+            ['AllAfrica Science', 'https://allafrica.com/tools/headlines/rdf/science/headlines.rdf'],
+            ['AllAfrica Wildlife', 'https://allafrica.com/tools/headlines/rdf/wildlife/headlines.rdf'],
+
+            ['Japan Gov RSS page', 'https://www.gov-online.go.jp/rss/'],
+            ['Japan Gov news RSS guess', 'https://www.gov-online.go.jp/rss/news.xml'],
+            ['Japan Gov main RSS guess', 'https://www.gov-online.go.jp/rss/index.xml'],
+            ['Japan Gov English RSS guess', 'https://www.gov-online.go.jp/rss/en.xml'],
+
+            ['JNTO English News', 'https://www.jnto.go.jp/en/news/'],
+            ['JNTO RSS guess', 'https://www.jnto.go.jp/en/rss.xml'],
+            ['JNTO News RSS guess', 'https://www.jnto.go.jp/en/news/rss.xml']
+          ];
+
+          for (const [name, url] of candidates) await probe(name, url);
+          NODE
