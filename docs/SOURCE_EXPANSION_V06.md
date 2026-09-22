@@ -101,6 +101,18 @@ French animal names such as chameau, crocodile, éléphant, gorille, baleine, ok
 contribute to deterministic playability, while fatality phrasing such as `coûte la vie` is filtered
 before AI. These changes benefit all existing French sources without adding low-yield collector volume.
 
+v0.6.14 hardens event geography before the second real Luna Scout batch. Structured feed
+location remains highest confidence, headline geography now outranks summary mentions, multi-country
+headlines stay unresolved, and broad regional prefixes such as `West Africa:` / `Afrique de
+l'Ouest:` cannot collapse to a single country from an incidental summary reference. Summary-only
+geography is accepted only through explicit locative phrasing.
+
+Live validation over the current 30-item deterministic Scout window produced 12 explicit event-country
+assignments and 18 intentionally unresolved items. The resolved assignments were coherent (US state
+stories, Zambia, Norway, Namibia, Bolivia, Ethiopia and Argentina), while the previously observed false
+China assignment on a West-Africa headline disappeared. The policy deliberately favors precision over
+geographic recall.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection
