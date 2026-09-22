@@ -9,13 +9,15 @@ const sensitive = [
   /\b(muert\p{L}*|asesinad\p{L}*|homicidio|suicidio|violación|abuso|masacre|terrorismo)\b/iu,
   /\b(mort\p{L}*|assassinad\p{L}*|homicídio|suicídio|estupro|abuso|massacre|terrorismo)\b/iu,
   /\b(tewas|meninggal|dibunuh|pembunuhan|bunuh diri|pemerkosaan|pelecehan|pembantaian|terorisme)\b/iu,
+  /\b(öldü|ölüm\p{L}*|öldür\p{L}*|cinayet|intihar|tecavüz|katliam|terör)\b/iu,
   /\b(missing child|missing children|kidnap\w*|domestic violence)\b/iu,
   /\b(sequestro di persona|violenza domestica)\b/iu,
   /(?:bambin\p{L}*|sorell\p{L}*).{0,50}scompars\p{L}*|scompars\p{L}*.{0,50}(?:bambin\p{L}*|sorell\p{L}*)/iu,
   /\b(enfant\w* disparu\w*|enlèvement|violence conjugale)\b/iu,
   /\b(niñ\w* desaparecid\w*|secuestro|violencia doméstica)\b/iu,
   /\b(crianç\w* desaparecid\w*|sequestro|violência doméstica)\b/iu,
-  /\b(anak\w* hilang|penculikan|kekerasan dalam rumah tangga)\b/iu
+  /\b(anak\w* hilang|penculikan|kekerasan dalam rumah tangga)\b/iu,
+  /\b(kayıp çocuk\p{L}*|kaçırıl\p{L}*|aile içi şiddet)\b/iu
 ];
 
 function titleWords(title: string): Set<string> {
