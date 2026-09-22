@@ -13,9 +13,11 @@ Paid AI remains bounded: deterministic discovery/dedupe happens first and Scout 
 
 Direct feeds retained: UPI Odd News, three Phys.org lanes and three New Atlas lanes.
 
-GDELT DOC 2.0 ArticleList RSS is added as a discovery radar, not the publisher of record. Five bounded
-48-hour query lanes cover animals/local oddities, sports, entertainment/culture, work/technology and
-records/lost-found. The underlying publisher URL remains the attribution and verification target.
+GDELT DOC 2.0 ArticleList RSS is used as a discovery radar, not the publisher of record. After live
+testing showed HTTP 429s when five thematic requests were issued from one collection cycle, v0.6.2
+collapses discovery into one bounded 48-hour global query. Category/lane assignment is performed
+locally from the returned title/summary, so the external API is called only once per cycle. The
+underlying publisher URL remains the attribution and verification target.
 
 Set `WTF_ENABLE_GDELT=0` for an immediate kill switch.
 
