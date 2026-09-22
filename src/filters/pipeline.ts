@@ -5,7 +5,7 @@ import { canonicalizeUrl } from "../domain/url.js";
 const sensitive = [
   /\b(kill(?:ed|ing|s)?|murder(?:ed|ing|s)?|dead|died|death(?:s)?|fatal(?:ity|ities)?|suicide|rape|abuse|massacre|terror)\b/iu,
   /\b(mort[oaie]|uccis\p{L}*|omicidio|suicidio|stupro|strage|terrorismo)\b/iu,
-  /\b(tué\p{L}*|meurtre|mort\p{L}*|décès|suicide|viol|abus|massacre|terrorisme)\b/iu,
+  /\b(tué\p{L}*|meurtre|mort\p{L}*|décès|suicide|viol|abus|massacre|terrorisme)\b|\b(?:co[uû]te|a coûté|a coute|perd|a perdu)\b.{0,24}\b(?:la )?vie\b/iu,
   /\b(muert\p{L}*|asesinad\p{L}*|homicidio|suicidio|violación|abuso|masacre|terrorismo)\b/iu,
   /\b(mort\p{L}*|assassinad\p{L}*|homicídio|suicídio|estupro|abuso|massacre|terrorismo)\b/iu,
   /\b(tewas|meninggal|dibunuh|pembunuhan|bunuh diri|pemerkosaan|pelecehan|pembantaian|terorisme)\b/iu,
