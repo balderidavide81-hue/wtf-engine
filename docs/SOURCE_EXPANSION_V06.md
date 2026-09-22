@@ -59,17 +59,18 @@ Live v0.6.10 validation:
 
 v0.6.11 expands the world-source search without accepting low-yield feeds merely for geography.
 Live evaluation initially tested six regional feeds across Argentina, South Africa, Kenya and Japan.
-All became technically reachable after a bounded Clarín retry, but only Clarín Autos earned a place in
-the current 30-item deterministic selection. TimesLIVE Lifestyle/Motoring, The Standard
-Magazines/Entertainment and Global Voices Japan were therefore removed again rather than permanently
-inflating collection volume.
+TimesLIVE Lifestyle/Motoring, The Standard Magazines/Entertainment and Global Voices Japan were
+removed again because their best current items had little or no deterministic WTF signal. Clarín Autos
+briefly earned an Argentina slot, but repeated validation showed intermittent feed timeouts even after
+a bounded retry, so it was not promoted.
 
 The Tokyo was then tested as a Japan replacement because its Atom/JSON programmatic feeds are free
 and its site-authored excerpts/metadata are CC BY 4.0. The source-policy gate passed, but the current
 50-item feed produced zero positive deterministic WTF scores in its top candidates and no Scout-slot
-entry, so it was not promoted. Africa and Japan therefore remain open source-quality gaps: current
-candidates either tested too generic or have reuse terms unsuitable for the planned mobile/commercial
-product. Clarín Autos is the only v0.6.11 regional source promoted.
+entry, so it was not promoted. Africa and Japan therefore remain open source-quality gaps: current candidates either tested too
+generic or have reuse terms unsuitable for the planned mobile/commercial product. Argentina is instead
+served by Motor1 Argentina's official `Curiosidad` RSS category, matching the focused-curiosity
+strategy already validated for other Motor1 / InsideEVs editions.
 
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
