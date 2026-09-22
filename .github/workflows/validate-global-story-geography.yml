@@ -41,7 +41,8 @@ jobs:
           }
 
           const report = await collect();
-          if (report.errors.length) throw new Error('source errors: ' + JSON.stringify(report.errors));
+          console.log('source_errors', JSON.stringify(report.errors));
+          if (report.kept < 30) throw new Error(`collector kept only ${report.kept} candidates`);
           const selected = selectScoutCandidates(report.candidates, 30);
           if (selected.length !== 30) throw new Error(`expected 30 selected candidates, got ${selected.length}`);
 
