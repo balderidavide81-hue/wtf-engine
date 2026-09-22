@@ -99,51 +99,6 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     retryCount: 1,
     retryDelayMs: 1_500
   },
-  {
-    name: "TimesLIVE Lifestyle",
-    url: "https://www.timeslive.co.za/arc/outboundfeeds/rss/category/lifestyle/",
-    language: "en",
-    country: "ZA",
-    discoverySource: "TimesLIVE Lifestyle",
-    categoryHint: "culture",
-    mediaUsageStatus: "link-only"
-  },
-  {
-    name: "TimesLIVE Motoring",
-    url: "https://www.timeslive.co.za/arc/outboundfeeds/rss/category/motoring/",
-    language: "en",
-    country: "ZA",
-    discoverySource: "TimesLIVE Motoring",
-    categoryHint: "transport",
-    mediaUsageStatus: "link-only"
-  },
-  {
-    name: "The Standard Magazines",
-    url: "https://www.standardmedia.co.ke/rss/magazines.php",
-    language: "en",
-    country: "KE",
-    discoverySource: "The Standard Magazines",
-    categoryHint: "culture",
-    mediaUsageStatus: "link-only"
-  },
-  {
-    name: "The Standard Entertainment",
-    url: "https://www.standardmedia.co.ke/rss/entertainment.php",
-    language: "en",
-    country: "KE",
-    discoverySource: "The Standard Entertainment",
-    categoryHint: "culture",
-    mediaUsageStatus: "link-only"
-  },
-  {
-    name: "Global Voices Japan",
-    url: "https://globalvoices.org/-/world/east-asia/japan/feed/",
-    language: "en",
-    country: "JP",
-    discoverySource: "Global Voices Japan",
-    categoryHint: "culture",
-    mediaUsageStatus: "link-only"
-  },
 
   // The Conversation operates local editions around the world and publishes
   // under Creative Commons. We still ingest only discovery metadata and keep
