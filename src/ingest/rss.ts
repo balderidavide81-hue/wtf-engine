@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import type { ArticleCandidate } from "../domain/types.js";
+import type { ArticleCandidate, GameCategory, MediaUsageStatus } from "../domain/types.js";
 import type { NewsSource } from "./index.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
 
@@ -8,6 +8,10 @@ export interface RssSourceConfig {
   url: string;
   language?: string;
   country?: string;
+  discoverySource?: string;
+  categoryHint?: GameCategory;
+  mediaUsageStatus?: MediaUsageStatus;
+  sourceNameStrategy?: "config" | "item-or-hostname";
 }
 
 type FeedItem = Record<string, unknown>;
@@ -16,6 +20,8 @@ const MAX_RSS_RESPONSE_CHARS = 2_000_000;
 const MAX_RSS_ITEMS = 100;
 const MAX_TITLE_CHARS = 600;
 const MAX_SUMMARY_CHARS = 4_000;
+const MAX_SOURCE_NAME_CHARS = 200;
+const MAX_ALT_CHARS = 500;
 
 function text(value: unknown): string | undefined {
   if (Array.isArray(value)) {
@@ -46,6 +52,77 @@ function itemsFrom(parsed: Record<string, any>): FeedItem[] {
   return Array.isArray(raw) ? raw : [raw];
 }
 
+function nodeUrl(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const candidate = nodeUrl(item);
+      if (candidate) return candidate;
+    }
+    return undefined;
+  }
+  if (typeof value === "string") return canonicalizeHttpUrl(value) ?? undefined;
+  if (!value || typeof value !== "object") return undefined;
+  const obj = value as Record<string, unknown>;
+  for (const key of ["@_url", "@_href", "url", "href"]) {
+    const raw = text(obj[key]);
+    const candidate = raw ? canonicalizeHttpUrl(raw) : null;
+    if (candidate) return candidate;
+  }
+  return undefined;
+}
+
+function articleLink(item: FeedItem): string | undefined {
+  const rawLinks = Array.isArray(item.link) ? item.link : item.link ? [item.link] : [];
+  for (const raw of rawLinks) {
+    if (raw && typeof raw === "object") {
+      const obj = raw as Record<string, unknown>;
+      const rel = text(obj["@_rel"]);
+      const href = text(obj["@_href"]);
+      if ((!rel || rel === "alternate") && href) {
+        const canonical = canonicalizeHttpUrl(href);
+        if (canonical) return canonical;
+      }
+    }
+  }
+  const fallback = text(item.link) ?? text(item.guid);
+  return fallback ? canonicalizeHttpUrl(fallback) ?? undefined : undefined;
+}
+
+function imageFromHtml(value: unknown): string | undefined {
+  const raw = text(value);
+  if (!raw) return undefined;
+  const match = /<img\b[^>]*?(?:src|data-src)\s*=\s*["']([^"']+)["']/i.exec(raw);
+  return match?.[1] ? canonicalizeHttpUrl(match[1]) ?? undefined : undefined;
+}
+
+function imageFromItem(item: FeedItem): string | undefined {
+  return [
+    nodeUrl(item["media:content"]),
+    nodeUrl(item["media:thumbnail"]),
+    nodeUrl(item.enclosure),
+    nodeUrl(item.image),
+    imageFromHtml(item["content:encoded"]),
+    imageFromHtml(item.description),
+    imageFromHtml(item.summary)
+  ].find(Boolean);
+}
+
+function imageAltFromItem(item: FeedItem): string | undefined {
+  return cleanFeedText(item["media:title"], MAX_ALT_CHARS)
+    ?? cleanFeedText(item["media:description"], MAX_ALT_CHARS);
+}
+
+function publisherName(item: FeedItem, canonicalLink: string, config: RssSourceConfig): string {
+  if (config.sourceNameStrategy !== "item-or-hostname") return config.name;
+  const itemSource = cleanFeedText(item.source, MAX_SOURCE_NAME_CHARS);
+  if (itemSource) return itemSource;
+  try {
+    return new URL(canonicalLink).hostname.replace(/^www\./, "");
+  } catch {
+    return config.name;
+  }
+}
+
 export class RssSource implements NewsSource {
   readonly name: string;
 
@@ -55,7 +132,7 @@ export class RssSource implements NewsSource {
 
   async fetchCandidates(): Promise<ArticleCandidate[]> {
     const response = await fetch(this.config.url, {
-      headers: { "user-agent": "wtf-engine/0.5 (+editorial prototype)" },
+      headers: { "user-agent": "wtf-engine/0.6 (+editorial discovery)" },
       signal: AbortSignal.timeout(10_000)
     });
     if (!response.ok) throw new Error(`${this.name}: HTTP ${response.status}`);
@@ -72,14 +149,12 @@ export class RssSource implements NewsSource {
 
     return itemsFrom(parsed).slice(0, MAX_RSS_ITEMS).flatMap(item => {
       const title = cleanFeedText(item.title, MAX_TITLE_CHARS);
-      const link = text(item.link) ?? text(item.guid);
-      if (!title || !link) return [];
+      const canonicalLink = articleLink(item);
+      if (!title || !canonicalLink) return [];
 
-      const canonicalLink = canonicalizeHttpUrl(link);
-      if (!canonicalLink) return [];
       return [{
         id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${canonicalLink}`,
-        sourceName: this.name,
+        sourceName: publisherName(item, canonicalLink, this.config),
         sourceUrl: canonicalLink,
         title,
         summary:
@@ -88,7 +163,12 @@ export class RssSource implements NewsSource {
           ?? cleanFeedText(item.content, MAX_SUMMARY_CHARS),
         publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
         language: this.config.language,
-        country: this.config.country
+        country: this.config.country,
+        imageUrl: imageFromItem(item),
+        imageAlt: imageAltFromItem(item),
+        discoverySource: this.config.discoverySource ?? this.config.name,
+        categoryHint: this.config.categoryHint,
+        mediaUsageStatus: this.config.mediaUsageStatus ?? "unreviewed"
       }];
     });
   }
