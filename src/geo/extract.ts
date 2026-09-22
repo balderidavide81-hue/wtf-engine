@@ -212,7 +212,7 @@ function explicitSummaryMatches(summary: string): AliasMatch[] {
   if (!matches.length) return [];
 
   const haystack = ` ${normalize(summary)} `;
-  const locative = /(?:^|\s)(?:in|at|near|outside|inside|across|throughout|nel|nella|nei|nelle|en|au|aux|dans|pres de|em|no|na|nos|nas|di|bei|im|nahe)\s+(?:(?:the|la|le|les|el|los|las|o|os|as|der|die|das|den|dem)\s+)?$/u;
+  const locative = /(?:^|\s)(?:in|at|near|outside|inside|across|throughout|nel|nella|nei|nelle|en|au|aux|dans|pres de|em|no|na|nos|nas|di|bei|im|nahe)(?:\s+(?:the|la|le|les|el|los|las|o|os|as|der|die|das|den|dem))?\s*$/u;
   const organizationContext = /(?:based|headquartered|publisher|company|azienda|societe|société|empresa|sede)\s+(?:is\s+)?(?:in|at|en|em|im)\s*$/u;
 
   return matches.filter(match => {
