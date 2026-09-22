@@ -46,16 +46,24 @@ jobs:
 
           if (raw.length < 10) throw new Error('AllAfrica Wildlife returned too few parsed RDF items: ' + raw.length);
 
+          const pluralDeath = raw.find(candidate => /Mystery Elephant Deaths/i.test(candidate.title));
+          const activeKilling = raw.find(candidate => /Killing Endemic Birds/i.test(candidate.title));
+
           const namibia = raw.find(candidate => /^Namibia:/i.test(candidate.title));
           if (namibia && namibia.eventCountry !== 'NA') {
             throw new Error('Namibia geography extraction failed: ' + JSON.stringify(namibia));
           }
 
-          const sensitiveRaw = raw.filter(candidate => /\b(killed|dead|death|fatal|murder)\b/i.test(`${candidate.title} ${candidate.summary ?? ''}`));
+          const sensitiveRaw = raw.filter(candidate => /\b(kill(?:ed|ing|s)?|dead|died|death(?:s)?|fatal(?:ity|ities)?|murder(?:ed|ing|s)?)\b/i.test(`${candidate.title} ${candidate.summary ?? ''}`));
           const filtered = prefilterDetailed(raw);
           for (const candidate of sensitiveRaw) {
             if (filtered.candidates.some(kept => kept.id === candidate.id)) {
               throw new Error('Sensitive AllAfrica candidate survived prefilter: ' + candidate.title);
+            }
+          }
+          for (const candidate of [pluralDeath, activeKilling].filter(Boolean)) {
+            if (filtered.candidates.some(kept => kept.id === candidate.id)) {
+              throw new Error('Inflected death/killing headline survived prefilter: ' + candidate.title);
             }
           }
 
