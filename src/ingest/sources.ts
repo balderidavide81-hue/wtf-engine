@@ -88,16 +88,13 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
   // v0.6.11 regional expansion: official/public RSS endpoints from local
   // publishers. These are discovery/link sources only; no article-body reuse.
   {
-    name: "Motor1 Argentina Curiosidad",
-    url: "https://ar.motor1.com/rss/category/curiosidad/",
-    language: "es",
-    country: "AR",
-    discoverySource: "Motor1 Argentina Curiosidad",
+    name: "Motor1 Germany Bizarr",
+    url: "https://de.motor1.com/rss/category/bizarr/",
+    language: "de",
+    country: "DE",
+    discoverySource: "Motor1 Germany Bizarr",
     categoryHint: "transport",
-    mediaUsageStatus: "link-only",
-    timeoutMs: 20_000,
-    retryCount: 1,
-    retryDelayMs: 1_500
+    mediaUsageStatus: "link-only"
   },
 
   // The Conversation operates local editions around the world and publishes
