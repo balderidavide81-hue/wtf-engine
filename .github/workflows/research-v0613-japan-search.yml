@@ -1,0 +1,66 @@
+name: Research v0.6.13 Japan focused search
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Probe The Tokyo search APIs
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          async function fetchJson(name, url) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 15000);
+            try {
+              const res = await fetch(url, {
+                headers: { 'user-agent': 'wtf-engine-source-research/0.6.13' },
+                redirect: 'follow',
+                signal: controller.signal
+              });
+              const text = await res.text();
+              let json = null;
+              try { json = JSON.parse(text); } catch {}
+              console.log('JAPAN_API=' + JSON.stringify({
+                name,
+                url,
+                status: res.status,
+                contentType: res.headers.get('content-type'),
+                bytes: text.length,
+                topKeys: json && typeof json === 'object' ? Object.keys(json).slice(0, 30) : [],
+                sample: json ?? text.slice(0, 1000)
+              }));
+            } catch (error) {
+              console.log('JAPAN_API=' + JSON.stringify({
+                name,
+                url,
+                error: error instanceof Error ? error.message : String(error)
+              }));
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+
+          const base = 'https://thetokyo.org';
+          const queries = [
+            'weird unusual quirky bizarre Japan',
+            'mascot robot unusual strange festival Japan',
+            'record odd bizarre animal Japan',
+            'unusual food vending machine strange Japan'
+          ];
+
+          await fetchJson('manifest', base + '/api/v1/index.json');
+          await fetchJson('openapi', base + '/api/openapi.json');
+          for (const q of queries) {
+            await fetchJson('search:' + q, base + '/api/llm-search?q=' + encodeURIComponent(q));
+          }
+          NODE
