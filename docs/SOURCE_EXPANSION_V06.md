@@ -64,11 +64,12 @@ the current 30-item deterministic selection. TimesLIVE Lifestyle/Motoring, The S
 Magazines/Entertainment and Global Voices Japan were therefore removed again rather than permanently
 inflating collection volume.
 
-The Japan slot was replaced by The Tokyo, whose Atom/JSON programmatic feeds are free and whose
-site-authored excerpts/metadata are CC BY 4.0. Its recent coverage contains the sort of locally specific
-oddities the game needs, while still linking and attributing the original publishers. Africa remains an
-open source-quality gap: current candidates either tested too generic or have reuse terms unsuitable for
-the planned mobile/commercial product.
+The Tokyo was then tested as a Japan replacement because its Atom/JSON programmatic feeds are free
+and its site-authored excerpts/metadata are CC BY 4.0. The source-policy gate passed, but the current
+50-item feed produced zero positive deterministic WTF scores in its top candidates and no Scout-slot
+entry, so it was not promoted. Africa and Japan therefore remain open source-quality gaps: current
+candidates either tested too generic or have reuse terms unsuitable for the planned mobile/commercial
+product. Clarín Autos is the only v0.6.11 regional source promoted.
 
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
