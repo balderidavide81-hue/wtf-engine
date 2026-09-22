@@ -76,14 +76,16 @@ and publisher breadth. Event geography is not used as a quality signal.
 The live pre-v0.6.7 batch contained broad medical/crime/explainer material because selection was driven
 mainly by recency and caps.
 
-The first playability-ranked validation produced:
+The final live validation produced:
 
 - 794 fetched;
-- 775 kept;
+- 765 kept;
+- 28 sensitive candidates removed before AI;
 - 30 selected;
-- 20 candidates with positive deterministic signals;
+- 20/30 candidates at deterministic quality score >= 10;
+- 26/30 with at least one positive playability signal;
 - 0 negative-only candidates;
-- five languages in the paid window.
+- all six live source languages represented: English, Italian, Indonesian, Spanish, French and Brazilian Portuguese.
 
-The final gate additionally requires at least 20/30 candidates to meet score >= 10 and rejects a batch
-containing any negative-only candidate.
+Synthetic safety fixtures also verify that missing minors and domestic violence are rejected before paid
+AI, and accented multilingual policy terms are recognized by the soft demotion layer.
