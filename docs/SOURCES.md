@@ -40,6 +40,20 @@ stays link-only unless separately cleared.
 The source-language metadata is preserved. Non-English candidates are classified directly in their
 original language; the collector does not pre-translate the firehose.
 
+### Focused regional curiosity feeds
+
+v0.6.10 adds category feeds that are explicitly narrower than a general news firehose:
+
+- InsideEVs Italia Curiosita — Italian / Italy / transport curiosities
+- Motor1 France Insolite — French / France / unusual transport
+- Motor1 Espana Curiosidades — Spanish / Spain / transport curiosities
+- InsideEVs Brasil Curiosidades — Brazilian Portuguese / Brazil / transport curiosities
+
+Each publisher's RSS directory describes its RSS feeds as a free service and exposes the category feed
+directly. WTF Engine ingests only title/summary/canonical-link discovery metadata and keeps media
+link-only. A small source prior helps these focused feeds compete with broad English sources without
+guaranteeing them a paid Scout slot.
+
 ## Sources reviewed but not enabled automatically
 
 Public RSS availability alone is not sufficient for commercial production use.

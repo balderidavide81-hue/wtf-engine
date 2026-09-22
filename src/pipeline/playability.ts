@@ -87,6 +87,7 @@ const SOURCE_BONUS: Array<[RegExp, number, string]> = [
   [/^UPI Odd News$/i, 28, "quirky-source"],
   [/^ScienceDaily Strange & Offbeat$/i, 24, "quirky-source"],
   [/^Rai Televideo Culture$/i, 6, "culture-source"],
+  [/^(InsideEVs Italia Curiosita|InsideEVs Brasil Curiosidades|Motor1 France Insolite|Motor1 Espana Curiosidades)$/i, 8, "focused-curiosity-source"],
   [/^Phys\.org Plants & Animals$/i, 5, "animal-source"],
   [/^Phys\.org Archaeology$/i, 4, "archaeology-source"]
 ];

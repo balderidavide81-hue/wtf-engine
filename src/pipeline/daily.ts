@@ -7,11 +7,14 @@ import type { ContentStore } from "../store/content-store.js";
 import { editionDateFor } from "../time/edition-date.js";
 import { sourceGeography } from "../geo/extract.js";
 import { comparePreScoutPriority, preScoutPlayability } from "./playability.js";
+import { dedupeNearStories } from "../filters/story-dedupe.js";
 
 const DEFAULT_SCOUT_LIMIT = SCOUT_BATCH_LIMIT;
 
 export function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): ArticleCandidate[] {
-  const sorted = [...candidates].sort(comparePreScoutPriority);
+  // Order by deterministic quality first, then drop paraphrased cross-source
+  // versions of the same event so the paid Scout window sees one story once.
+  const sorted = dedupeNearStories([...candidates].sort(comparePreScoutPriority));
   const selected: ArticleCandidate[] = [];
   const used = new Set<string>();
   const perSource = new Map<string, number>();

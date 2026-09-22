@@ -46,6 +46,45 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     mediaUsageStatus: "link-only"
   },
 
+  // Focused regional curiosity feeds. These publishers explicitly expose free
+  // category RSS feeds; WTF Engine uses only discovery metadata/canonical links.
+  {
+    name: "InsideEVs Italia Curiosita",
+    url: "https://insideevs.it/rss/category/curiosita/",
+    language: "it",
+    country: "IT",
+    discoverySource: "InsideEVs Italia Curiosita",
+    categoryHint: "transport",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "Motor1 France Insolite",
+    url: "https://fr.motor1.com/rss/category/weird/",
+    language: "fr",
+    country: "FR",
+    discoverySource: "Motor1 France Insolite",
+    categoryHint: "transport",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "Motor1 Espana Curiosidades",
+    url: "https://es.motor1.com/rss/category/curiosidades/",
+    language: "es",
+    country: "ES",
+    discoverySource: "Motor1 Espana Curiosidades",
+    categoryHint: "transport",
+    mediaUsageStatus: "link-only"
+  },
+  {
+    name: "InsideEVs Brasil Curiosidades",
+    url: "https://insideevs.uol.com.br/rss/category/curiosidades/",
+    language: "pt-BR",
+    country: "BR",
+    discoverySource: "InsideEVs Brasil Curiosidades",
+    categoryHint: "transport",
+    mediaUsageStatus: "link-only"
+  },
+
   // The Conversation operates local editions around the world and publishes
   // under Creative Commons. We still ingest only discovery metadata and keep
   // third-party media link-only; the original source language is preserved.
