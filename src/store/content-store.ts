@@ -1,36 +1,51 @@
-import type { ArticleCandidate } from "../domain/types.js";
-import type { PersistedPipelineRun, DailyEditionRecord, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
+import type { ArticleCandidate, MediaUsageStatus } from "../domain/types.js";
+import type {
+  PersistedPipelineRun,
+  DailyEditionRecord,
+  EditorialEditionRecord,
+  CardLifecycleStatus,
+  EditionStatus,
+  PublicEditionRecord,
+  PublicFeedRecord,
+  PredictionResolutionInput,
+  PredictionVoidInput
+} from "./types.js";
 
 export interface ContentStore {
-  /** Returns candidate IDs already processed by Scout, matching either external identity or canonical URL. */
+  /** Prompt-version-aware model processing dedupe. */
   findProcessedCandidateIds(candidates: ArticleCandidate[]): Promise<Set<string>>;
 
-  /** Acquires a short-lived cross-instance lease for paid generation. */
+  /** Player-facing anti-repeat, independent of prompt version. */
+  findKnownStoryCandidateIds(candidates: ArticleCandidate[]): Promise<Set<string>>;
+
   tryAcquireGenerationLease(leaseKey: string, ttlSeconds: number): Promise<string | null>;
   releaseGenerationLease(leaseKey: string, ownerToken: string): Promise<void>;
 
-  /**
-   * Persists one completed generation. Implementations must upsert articles by
-   * stable external/canonical identity so reruns do not duplicate source material.
-   */
   saveCompletedRun(run: PersistedPipelineRun): Promise<{ runId: string; cardIds: string[] }>;
-
-  /**
-   * Appends newly generated cards to a draft edition without deleting existing
-   * cards. Must be idempotent for repeated card IDs and must refuse to mutate a
-   * reviewed/published edition.
-   */
   appendDraftEdition(editionDate: string, cardIds: string[]): Promise<DailyEditionRecord>;
 
   getEdition(editionDate: string): Promise<DailyEditionRecord | null>;
   getEditorialEdition(editionDate: string): Promise<EditorialEditionRecord | null>;
   getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null>;
+  getPublishedFeed(limit: number, before?: string): Promise<PublicFeedRecord>;
+
   setCardLifecycle(
     editionDate: string,
     cardId: string,
     status: Extract<CardLifecycleStatus, "reviewed" | "rejected">
   ): Promise<void>;
-  setEditionStatus(editionDate: string, status: Extract<EditionStatus, "reviewed" | "published">): Promise<DailyEditionRecord>;
+
+  setEditionStatus(
+    editionDate: string,
+    status: Extract<EditionStatus, "reviewed" | "published">
+  ): Promise<DailyEditionRecord>;
+
+  setArticleMediaUsage(
+    articleId: string,
+    status: MediaUsageStatus,
+    cachedUrl?: string
+  ): Promise<void>;
+
   resolvePrediction(cardId: string, input: PredictionResolutionInput): Promise<void>;
   voidPrediction(cardId: string, input: PredictionVoidInput): Promise<void>;
 }

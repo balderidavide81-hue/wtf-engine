@@ -29,13 +29,18 @@ export interface Scout {
   classifyDetailed(candidates: ArticleCandidate[]): Promise<ScoutBatch>;
 }
 
-export const SCOUT_PROMPT_VERSION = "scout/v0.2";
+export const SCOUT_PROMPT_VERSION = "scout/v0.3";
 
 const instructions = `
 You are Luna Scout, the first editorial classifier for WTF Engine.
 
 Goal: identify real-world stories worth turning into a light, surprising and shareable game.
 Primary question: would a person plausibly enjoy discovering, playing or sharing this story?
+
+Search for the WTF moment across every domain, not just science: animals and local life, sport,
+film/TV, music, culture, unusual jobs/workplaces, records, food, travel, technology, transport,
+internet phenomena, history/archaeology and science. Topic prestige is irrelevant; playability wins.
+A strong candidate should make a normal person think some version of "wait, what happened?"
 
 Do not equate unusual with good. Weird but boring can be REJECT.
 Use only facts in the supplied candidate material. Never invent supporting facts.
@@ -110,7 +115,9 @@ function compactCandidate(candidate: ArticleCandidate) {
     summary: candidate.summary ?? null,
     publishedAt: candidate.publishedAt ?? null,
     language: candidate.language ?? null,
-    country: candidate.country ?? null
+    country: candidate.country ?? null,
+    discoverySource: candidate.discoverySource ?? null,
+    categoryHint: candidate.categoryHint ?? null
   };
 }
 

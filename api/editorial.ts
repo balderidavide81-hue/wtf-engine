@@ -27,6 +27,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await contentStore.setCardLifecycle(date, req.body.cardId, action === "review_card" ? "reviewed" : "rejected");
         return res.status(200).json({ ok: true });
       }
+      if (action === "set_media_usage") {
+        if (typeof req.body?.articleId !== "string") {
+          return res.status(400).json({ error: "article_id_required" });
+        }
+        const allowed = ["unreviewed", "link-only", "remote-display", "cache-allowed", "owned"];
+        if (typeof req.body?.status !== "string" || !allowed.includes(req.body.status)) {
+          return res.status(400).json({ error: "invalid_media_usage_status" });
+        }
+        if (req.body?.cachedUrl !== undefined && typeof req.body.cachedUrl !== "string") {
+          return res.status(400).json({ error: "invalid_cached_url" });
+        }
+        await contentStore.setArticleMediaUsage(
+          req.body.articleId,
+          req.body.status,
+          typeof req.body.cachedUrl === "string" && req.body.cachedUrl.trim()
+            ? req.body.cachedUrl.trim()
+            : undefined
+        );
+        return res.status(200).json({ ok: true });
+      }
       if (action === "resolve_prediction") {
         if (typeof req.body?.cardId !== "string") return res.status(400).json({ error: "card_id_required" });
         if (!Number.isInteger(req.body?.outcomeOptionIndex)) {

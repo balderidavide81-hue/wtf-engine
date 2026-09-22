@@ -1,5 +1,5 @@
 import type { GameCardDraft } from "../ai/editor.js";
-import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
+import type { ArticleCandidate, GameCategory, InteractionType, MediaUsageStatus, ScoutResult } from "../domain/types.js";
 import type { AiUsageDiagnostics } from "../ai/scout.js";
 
 export type EditionStatus = "draft" | "reviewed" | "published";
@@ -28,6 +28,8 @@ export interface EditorialCardRecord {
   id: string;
   articleId: string;
   mode: "WTF" | "PREDICT" | "STORY";
+  interactionType: InteractionType;
+  category: GameCategory;
   hook: string;
   question: string;
   options: string[];
@@ -38,6 +40,10 @@ export interface EditorialCardRecord {
   sourceName: string;
   sourceUrl: string;
   title: string;
+  imageUrlOriginal: string | null;
+  imageUrlCached: string | null;
+  imageAltText: string | null;
+  imageUsageStatus: MediaUsageStatus;
 }
 
 export interface EditorialEditionRecord extends DailyEditionRecord {
@@ -47,6 +53,8 @@ export interface EditorialEditionRecord extends DailyEditionRecord {
 export interface PublicGameCardRecord {
   id: string;
   mode: "WTF" | "PREDICT" | "STORY";
+  interactionType: InteractionType;
+  category: GameCategory;
   status: Extract<CardLifecycleStatus, "published" | "open" | "resolved" | "void">;
   hook: string;
   question: string;
@@ -58,10 +66,17 @@ export interface PublicGameCardRecord {
   resolutionEvidenceUrl: string | null;
   sourceName: string;
   sourceUrl: string;
+  imageUrl: string | null;
+  imageAltText: string | null;
+  publishedAt: string;
 }
 
 export interface PublicEditionRecord {
   editionDate: string;
+  cards: PublicGameCardRecord[];
+}
+
+export interface PublicFeedRecord {
   cards: PublicGameCardRecord[];
 }
 

@@ -1,8 +1,8 @@
-# Source policy v0.5
+# Source policy v0.6
 
-The collector uses a deliberately small automatic RSS portfolio plus optional operator-configured feeds.
+WTF Engine uses direct publisher feeds plus discovery-radar feeds.
 
-## Active default feeds
+## Active direct feeds
 
 - UPI Odd News
 - Phys.org Plants & Animals
@@ -12,30 +12,42 @@ The collector uses a deliberately small automatic RSS portfolio plus optional op
 - New Atlas Technology
 - New Atlas Transport
 
-The exact feed URLs and metadata live in `src/ingest/sources.ts`.
+## Active discovery radar
+
+GDELT DOC 2.0 ArticleList RSS is split into bounded query lanes for:
+
+- animals/local oddities;
+- sports;
+- entertainment/culture;
+- work/technology;
+- records/lost-found.
+
+GDELT is not presented to players as the source. The underlying publisher URL remains the
+attribution/verification target.
 
 ## Ingestion rules
 
-- ingest only title/summary/source metadata needed for discovery;
-- retain a canonical HTTP(S) source URL for attribution and review;
-- strip common tracking parameters before identity/dedupe;
-- reject non-HTTP(S) article links;
-- use deterministic duplicate/sensitivity filtering before AI;
-- do not republish third-party article bodies or media without appropriate rights.
+- ingest only metadata needed for discovery;
+- retain canonical HTTP(S) source URLs;
+- capture feed image metadata but default third-party media to `unreviewed`;
+- deterministic duplicate/sensitivity filtering before AI;
+- persistent player-facing anti-repeat independent of prompt version;
+- never republish third-party article bodies;
+- never expose/cache third-party images until media usage is approved.
 
-RSS fetches have a finite timeout so one stalled publisher cannot occupy the whole generation window indefinitely.
+## Operator controls
 
-## Expansion
+Additional feeds:
 
-Additional feeds can be added through `WTF_RSS_SOURCES`:
+`WTF_RSS_SOURCES=Name|URL|language|country,Name 2|URL|language|country`
 
-`Name|URL|language|country,Name 2|URL|language|country`
+GDELT kill switch:
 
-Before activation:
-1. verify the machine-readable endpoint and freshness;
-2. review access/reuse/attribution terms;
-3. prefer stable canonical URLs and timestamps;
-4. verify that summaries are sufficient for classification;
-5. keep publication subject to editorial source review.
+`WTF_ENABLE_GDELT=0`
 
-Discovery breadth does not bypass Scout or editorial review.
+## Promotion checklist
+
+Before promoting a source, verify feed freshness, access/reuse/attribution terms, canonical URLs,
+summary sufficiency and image rights separately.
+
+See `docs/SOURCE_EXPANSION_V06.md` for candidate sources and structured PREDICT research.

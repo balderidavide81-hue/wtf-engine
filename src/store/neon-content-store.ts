@@ -1,11 +1,11 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 import { createHash, randomUUID } from "node:crypto";
-import type { ArticleCandidate } from "../domain/types.js";
+import type { ArticleCandidate, MediaUsageStatus } from "../domain/types.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
 import { EDITOR_PROMPT_VERSION } from "../ai/editor.js";
 import type { ContentStore } from "./content-store.js";
-import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
+import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
 
 function requireDatabaseUrl(): string {
   const value = process.env.DATABASE_URL;
@@ -74,6 +74,33 @@ export class NeonContentStore implements ContentStore {
     );
   }
 
+  async findKnownStoryCandidateIds(candidates: ArticleCandidate[]): Promise<Set<string>> {
+    if (candidates.length === 0) return new Set();
+    const externalIds = candidates.map(candidate => candidate.id);
+    const canonicalUrls = candidates.map(candidate => candidate.sourceUrl);
+    const titles = candidates.map(candidate => candidate.title);
+    const result = await this.pool.query(
+      `with input as (
+         select * from unnest($1::text[], $2::text[], $3::text[])
+           as t(external_id, canonical_url, title)
+       )
+       select distinct input.external_id
+         from input
+        where exists (
+          select 1
+            from articles a
+            join game_cards gc on gc.article_id=a.id
+           where gc.lifecycle_status <> 'rejected'
+             and (
+               a.canonical_url = input.canonical_url
+               or similarity(lower(a.title), lower(input.title)) >= 0.66
+             )
+        )`,
+      [externalIds, canonicalUrls, titles]
+    );
+    return new Set(result.rows.map(row => String(row.external_id)));
+  }
+
   async saveCompletedRun(run: PersistedPipelineRun): Promise<{ runId: string; cardIds: string[] }> {
     const client = await this.pool.connect();
     try {
@@ -122,14 +149,15 @@ export class NeonContentStore implements ContentStore {
         if (!articleId) continue;
         const result = await client.query(
           `insert into game_cards
-             (article_id, scout_result_id, run_id, prompt_version, model, mode, hook, question,
-              options, correct_option_index, reveal, resolution_rule)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12)
+             (article_id, scout_result_id, run_id, prompt_version, model, mode, interaction_type, category,
+              hook, question, options, correct_option_index, reveal, resolution_rule)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14)
            on conflict (article_id, prompt_version) do update set
              article_id=excluded.article_id
            returning id`,
           [articleId, scoutIds.get(card.articleId) ?? null, runId, EDITOR_PROMPT_VERSION,
-           run.ai.editor.model, card.mode, card.hook, card.question, JSON.stringify(card.options),
+           run.ai.editor.model, card.mode, card.interactionType, card.category,
+           card.hook, card.question, JSON.stringify(card.options),
            card.correctOptionIndex, card.reveal, card.resolutionRule]
         );
         cardIds.push(String(result.rows[0].id));
@@ -220,9 +248,10 @@ export class NeonContentStore implements ContentStore {
     const edition = await this.getEdition(editionDate);
     if (!edition) return null;
     const result = await this.pool.query(
-      `select gc.id, gc.article_id, gc.mode, gc.hook, gc.question, gc.options,
-              gc.correct_option_index, gc.reveal, gc.resolution_rule, gc.lifecycle_status,
-              a.source_name, a.source_url, a.title
+      `select gc.id, gc.article_id, gc.mode, gc.interaction_type, gc.category,
+              gc.hook, gc.question, gc.options, gc.correct_option_index, gc.reveal,
+              gc.resolution_rule, gc.lifecycle_status, a.source_name, a.source_url, a.title,
+              a.image_url_original, a.image_url_cached, a.image_alt_text, a.image_usage_status
          from daily_edition_cards dec
          join game_cards gc on gc.id = dec.card_id
          join articles a on a.id = gc.article_id
@@ -236,6 +265,8 @@ export class NeonContentStore implements ContentStore {
         id: String(row.id),
         articleId: String(row.article_id),
         mode: row.mode,
+        interactionType: row.interaction_type,
+        category: row.category,
         hook: row.hook,
         question: row.question,
         options: row.options,
@@ -245,16 +276,22 @@ export class NeonContentStore implements ContentStore {
         lifecycleStatus: row.lifecycle_status,
         sourceName: row.source_name,
         sourceUrl: row.source_url,
-        title: row.title
+        title: row.title,
+        imageUrlOriginal: row.image_url_original ?? null,
+        imageUrlCached: row.image_url_cached ?? null,
+        imageAltText: row.image_alt_text ?? null,
+        imageUsageStatus: row.image_usage_status
       }))
     };
   }
 
   async getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null> {
     const result = await this.pool.query(
-      `select de.edition_date::text, gc.id, gc.mode, gc.hook, gc.question, gc.options,
-              gc.resolution_rule, gc.correct_option_index, gc.reveal, gc.lifecycle_status, gc.resolution,
-              a.source_name, a.source_url
+      `select de.edition_date::text, gc.id, gc.mode, gc.interaction_type, gc.category,
+              gc.hook, gc.question, gc.options, gc.resolution_rule, gc.correct_option_index,
+              gc.reveal, gc.lifecycle_status, gc.resolution, gc.published_at,
+              a.source_name, a.source_url, a.image_url_original, a.image_url_cached,
+              a.image_alt_text, a.image_usage_status
          from daily_editions de
          join daily_edition_cards dec on dec.edition_id=de.id
          join game_cards gc on gc.id=dec.card_id
@@ -274,6 +311,8 @@ export class NeonContentStore implements ContentStore {
         return {
           id: String(row.id),
           mode: row.mode,
+          interactionType: row.interaction_type,
+          category: row.category,
           status: row.lifecycle_status,
           hook: row.hook,
           question: row.question,
@@ -285,7 +324,14 @@ export class NeonContentStore implements ContentStore {
           resolutionEvidenceUrl:
             (resolved || voided) && row.resolution?.evidenceUrl ? String(row.resolution.evidenceUrl) : null,
           sourceName: row.source_name,
-          sourceUrl: row.source_url
+          sourceUrl: row.source_url,
+          imageUrl: ["remote-display", "cache-allowed", "owned"].includes(row.image_usage_status)
+            ? (row.image_url_cached ?? row.image_url_original ?? null)
+            : null,
+          imageAltText: row.image_alt_text ?? null,
+          publishedAt: row.published_at
+            ? new Date(row.published_at).toISOString()
+            : new Date(0).toISOString()
         };
       })
     };
@@ -390,6 +436,7 @@ export class NeonContentStore implements ContentStore {
         await client.query(
           `update game_cards gc
               set lifecycle_status = case when gc.mode='PREDICT' then 'open' else 'published' end,
+                  published_at=coalesce(gc.published_at, now()),
                   updated_at=now()
             where gc.id in (
               select dec.card_id from daily_edition_cards dec
@@ -422,6 +469,84 @@ export class NeonContentStore implements ContentStore {
     } finally {
       client.release();
     }
+  }
+
+  async getPublishedFeed(limit: number, before?: string): Promise<PublicFeedRecord> {
+    const boundedLimit = Math.max(1, Math.min(Math.trunc(limit), 50));
+    const beforeDate = before ? new Date(before) : null;
+    if (beforeDate && Number.isNaN(beforeDate.getTime())) {
+      throw new Error("Invalid feed cursor");
+    }
+
+    const result = await this.pool.query(
+      `select gc.id, gc.mode, gc.interaction_type, gc.category, gc.hook, gc.question, gc.options,
+              gc.resolution_rule, gc.correct_option_index, gc.reveal, gc.lifecycle_status,
+              gc.resolution, gc.published_at, a.source_name, a.source_url,
+              a.image_url_original, a.image_url_cached, a.image_alt_text, a.image_usage_status
+         from game_cards gc
+         join articles a on a.id=gc.article_id
+        where gc.lifecycle_status in ('published','open','resolved','void')
+          and gc.published_at is not null
+          and ($2::timestamptz is null or gc.published_at < $2::timestamptz)
+        order by gc.published_at desc, gc.id
+        limit $1`,
+      [boundedLimit, beforeDate?.toISOString() ?? null]
+    );
+
+    const cards: PublicGameCardRecord[] = result.rows.map(row => {
+      const resolved = row.lifecycle_status === "resolved";
+      const voided = row.lifecycle_status === "void";
+      return {
+        id: String(row.id),
+        mode: row.mode,
+        interactionType: row.interaction_type,
+        category: row.category,
+        status: row.lifecycle_status,
+        hook: row.hook,
+        question: row.question,
+        options: row.options,
+        resolutionRule: row.mode === "PREDICT" ? row.resolution_rule : null,
+        resolvedOptionIndex: resolved ? Number(row.correct_option_index) : null,
+        reveal: resolved ? row.reveal : null,
+        voidReason: voided && row.resolution?.reason ? String(row.resolution.reason) : null,
+        resolutionEvidenceUrl:
+          (resolved || voided) && row.resolution?.evidenceUrl
+            ? String(row.resolution.evidenceUrl)
+            : null,
+        sourceName: row.source_name,
+        sourceUrl: row.source_url,
+        imageUrl: ["remote-display", "cache-allowed", "owned"].includes(row.image_usage_status)
+          ? (row.image_url_cached ?? row.image_url_original ?? null)
+          : null,
+        imageAltText: row.image_alt_text ?? null,
+        publishedAt: new Date(row.published_at).toISOString()
+      };
+    });
+
+    return { cards };
+  }
+
+  async setArticleMediaUsage(
+    articleId: string,
+    status: MediaUsageStatus,
+    cachedUrl?: string
+  ): Promise<void> {
+    const allowed: MediaUsageStatus[] = [
+      "unreviewed", "link-only", "remote-display", "cache-allowed", "owned"
+    ];
+    if (!allowed.includes(status)) throw new Error("Unsupported media usage status");
+    const canonicalCachedUrl = cachedUrl ? canonicalizeHttpUrl(cachedUrl) : null;
+    if (cachedUrl && !canonicalCachedUrl) throw new Error("cachedUrl must be HTTP(S)");
+
+    const result = await this.pool.query(
+      `update articles
+          set image_usage_status=$2,
+              image_url_cached=case when $3::text is null then image_url_cached else $3 end
+        where id=$1
+        returning id`,
+      [articleId, status, canonicalCachedUrl]
+    );
+    if (result.rowCount === 0) throw new Error(`Article ${articleId} not found`);
   }
 
   async resolvePrediction(cardId: string, input: PredictionResolutionInput): Promise<void> {
@@ -496,21 +621,35 @@ export class NeonContentStore implements ContentStore {
       await client.query(
         `update articles set
            external_id=$2, source_id=$3, source_name=$4, source_url=$5, canonical_url=$5,
-           title=$6, summary=$7, published_at=$8, language=$9, country=$10, last_seen_at=now()
+           title=$6, summary=$7, published_at=$8, language=$9, country=$10,
+           image_url_original=coalesce($11,image_url_original),
+           image_alt_text=coalesce($12,image_alt_text),
+           discovery_source=coalesce($13,discovery_source),
+           category_hint=coalesce($14,category_hint),
+           image_usage_status=case
+             when image_usage_status='unreviewed' then coalesce($15,'unreviewed')
+             else image_usage_status
+           end,
+           last_seen_at=now()
          where id=$1`,
         [articleId, candidate.id, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
-         candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null]
+         candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null,
+         candidate.imageUrl ?? null, candidate.imageAlt ?? null, candidate.discoverySource ?? null,
+         candidate.categoryHint ?? null, candidate.mediaUsageStatus ?? "unreviewed"]
       );
       return articleId;
     }
     const result = await client.query(
       `insert into articles
          (external_id, source_id, source_name, source_url, canonical_url, title, summary,
-          published_at, language, country)
-       values ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9)
+          published_at, language, country, image_url_original, image_alt_text,
+          discovery_source, category_hint, image_usage_status)
+       values ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        returning id`,
       [candidate.id, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
-       candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null]
+       candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null,
+       candidate.imageUrl ?? null, candidate.imageAlt ?? null, candidate.discoverySource ?? null,
+       candidate.categoryHint ?? null, candidate.mediaUsageStatus ?? "unreviewed"]
     );
     return String(result.rows[0].id);
   }
