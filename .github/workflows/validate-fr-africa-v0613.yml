@@ -1,5 +1,7 @@
 name: Validate v0.6.13 French semantic parity
 
+# Re-run after normalized multilingual regex matching
+
 on:
   pull_request:
     branches: [main]
