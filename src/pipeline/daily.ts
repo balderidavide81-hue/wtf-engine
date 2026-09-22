@@ -15,7 +15,7 @@ function newestFirst(a: ArticleCandidate, b: ArticleCandidate): number {
   return bt - at;
 }
 
-function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): ArticleCandidate[] {
+export function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): ArticleCandidate[] {
   const sorted = [...candidates].sort(newestFirst);
   const selected: ArticleCandidate[] = [];
   const used = new Set<string>();
