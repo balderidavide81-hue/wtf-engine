@@ -54,6 +54,25 @@ directly. WTF Engine ingests only title/summary/canonical-link discovery metadat
 link-only. A small source prior helps these focused feeds compete with broad English sources without
 guaranteeing them a paid Scout slot.
 
+### Broader regional world pack
+
+v0.6.11 adds local/regional discovery from countries that were still thin in the live batch:
+
+- Clarin Autos — Spanish / Argentina / official RSS;
+- TimesLIVE Lifestyle — English / South Africa / official RSS;
+- TimesLIVE Motoring — English / South Africa / official RSS;
+- The Standard Magazines — English / Kenya / official RSS;
+- The Standard Entertainment — English / Kenya / official RSS;
+- Global Voices Japan — English / Japan / Creative Commons source feed.
+
+These feeds do not receive a focused-curiosity bonus. They must earn a Scout slot through the same
+deterministic playability signals and source/geography caps as the rest of the pool.
+
+Clarín explicitly says its feeds may be added free to readers and integrated into websites/apps.
+TimesLIVE describes RSS as a syndication format and publishes direct section feeds. The Standard
+publishes direct topic RSS URLs for readers. Global Voices publishes under Creative Commons with
+attribution and provides country feeds.
+
 ## Sources reviewed but not enabled automatically
 
 Public RSS availability alone is not sufficient for commercial production use.
@@ -64,6 +83,11 @@ Public RSS availability alone is not sufficient for commercial production use.
 - EL PAÍS: extensive public RSS catalogue exists; historic material describes headline syndication, but
   current licensing/contact pages make commercial reuse sufficiently ambiguous that automatic production
   ingestion should wait for explicit source-policy review.
+- SoraNews24 / RocketNews24: editorial fit for Japan/Asia is excellent, but SoraNews24's partnership page
+  routes RSS/article contribution and distribution through a contact/partner arrangement. Keep them as
+  research candidates until reuse terms for automated commercial discovery are explicitly cleared.
+- The Straits Times: official Life RSS exists, but current site terms are not permissive enough for automatic
+  production promotion without a separate source-policy decision.
 
 These can remain research/manual-reference sources without entering the automated collector.
 
