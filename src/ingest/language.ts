@@ -1,4 +1,4 @@
-type SupportedContentLanguage = "en" | "it" | "fr" | "es" | "pt-BR" | "id";
+type SupportedContentLanguage = "en" | "it" | "fr" | "es" | "pt-BR" | "id" | "de";
 
 interface LanguageRule {
   language: SupportedContentLanguage;
@@ -36,6 +36,11 @@ const RULES: LanguageRule[] = [
     language: "id",
     strong: new Set(["yang","dan","dari","untuk","dengan","ini","itu","adalah","akan","tidak","bisa","sebagai","pada","juga","karena"]),
     common: new Set(["di","ke","atau","oleh","dalam"])
+  },
+  {
+    language: "de",
+    strong: new Set(["der","die","das","des","dem","den","einer","einem","einen","nicht","wird","sind","über","für","zur","zum"]),
+    common: new Set(["und","mit","von","auf","aus","bei","ein","eine","im","in"])
   }
 ];
 
