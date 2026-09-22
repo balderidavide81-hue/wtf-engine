@@ -25,9 +25,15 @@ jobs:
           const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
 
           const feeds = [
-            ['Korea.net Culture', 'https://www.korea.net/koreanet/rss/news/7', 'culture'],
-            ['Korea.net Food Travel', 'https://www.korea.net/koreanet/rss/news/8', 'culture'],
-            ['Korea.net Sci Tech', 'https://www.korea.net/koreanet/rss/news/5', 'technology']
+            ['Korea.net Culture', 'https://www.korea.net/koreanet/rss/news/7', 'culture', 'en'],
+            ['Korea.net Food Travel', 'https://www.korea.net/koreanet/rss/news/8', 'culture', 'en'],
+            ['Korea.net Sci Tech', 'https://www.korea.net/koreanet/rss/news/5', 'technology', 'en'],
+            ['Korea.net Cultura ES', 'https://spanish.korea.net/koreanet/rss/news/7', 'culture', 'es'],
+            ['Korea.net Gastronomia Viajes ES', 'https://spanish.korea.net/koreanet/rss/news/8', 'culture', 'es'],
+            ['Korea.net Culture FR', 'https://french.korea.net/koreanet/rss/news/7', 'culture', 'fr'],
+            ['Korea.net Cuisine Voyage FR', 'https://french.korea.net/koreanet/rss/news/8', 'culture', 'fr'],
+            ['Korea.net Budaya ID', 'https://indonesian.korea.net/koreanet/rss/news/7', 'culture', 'id'],
+            ['Korea.net Makanan Wisata ID', 'https://indonesian.korea.net/koreanet/rss/news/8', 'culture', 'id']
           ];
 
           async function traceRedirects(name, startUrl) {
@@ -46,10 +52,10 @@ jobs:
 
           for (const [name, url] of feeds) await traceRedirects(name, url);
 
-          for (const [name, url, categoryHint] of feeds) {
+          for (const [name, url, categoryHint, language] of feeds) {
             try {
               const source = new RssSource({
-                name, url, language:'en', country:'KR', discoverySource:name,
+                name, url, language, country:'KR', discoverySource:name,
                 categoryHint, mediaUsageStatus:'link-only'
               });
               const raw = await source.fetchCandidates();
