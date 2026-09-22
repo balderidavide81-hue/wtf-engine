@@ -56,17 +56,21 @@ guaranteeing them a paid Scout slot.
 
 ### Broader regional world pack
 
-v0.6.11 promotes one additional regional source after source-policy and live quality gates:
+v0.6.11 promotes one additional focused regional source after source-policy, transport-reliability
+and live quality gates:
 
-- Clarin Autos — Spanish / Argentina / official RSS.
+- Motor1 Argentina Curiosidad — Spanish / Argentina / official category RSS.
 
-It receives no focused-curiosity bonus and must earn a Scout slot through the same deterministic
-playability signals and source/geography caps as the rest of the pool. Clarín explicitly says its
-feeds may be added free to readers and integrated into websites/apps.
+Motor1 Argentina exposes category RSS feeds as a free service to its users. The Argentina
+`Curiosidad` feed receives the same modest focused-curiosity prior as the already validated Motor1 /
+InsideEVs feeds for France, Spain, Italy and Brazil; it still has to earn a Scout slot through normal
+playability and diversity caps.
 
 Several technically healthy regional feeds were tested but deliberately not promoted because their
 current top items had weak deterministic WTF playability: TimesLIVE Lifestyle, TimesLIVE Motoring,
-The Standard Magazines, The Standard Entertainment and Global Voices Japan.
+The Standard Magazines, The Standard Entertainment and Global Voices Japan. Clarín Autos briefly
+produced a viable Argentina candidate, but repeated GitHub-runner validation exposed intermittent
+timeouts even with a bounded retry, so it was replaced rather than promoted.
 
 The Tokyo was also evaluated separately. Its programmatic feeds are free and its site-authored
 excerpts/metadata are CC BY 4.0, but the current 50-item Atom feed produced no positive deterministic
