@@ -1,0 +1,57 @@
+name: Probe real collector v0.6.5
+
+on:
+  push:
+    branches:
+      - feature/0.6.5-global-multilingual-sources
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+      - name: Run collector against live sources
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
+          const report = await collect();
+
+          const countBy = (items, key) => {
+            const out = {};
+            for (const item of items) {
+              const value = String(item[key] ?? 'UNKNOWN');
+              out[value] = (out[value] ?? 0) + 1;
+            }
+            return Object.fromEntries(Object.entries(out).sort((a, b) => b[1] - a[1]));
+          };
+
+          const summary = {
+            sourceCount: report.sourceCount,
+            fetched: report.fetched,
+            kept: report.kept,
+            errors: report.errors,
+            bySource: report.bySource,
+            byLanguage: countBy(report.candidates, 'language'),
+            byCountry: countBy(report.candidates, 'country'),
+            candidateSources: countBy(report.candidates, 'sourceName'),
+            sample: report.candidates.slice(0, 20).map(c => ({
+              source: c.sourceName,
+              language: c.language,
+              country: c.country,
+              title: c.title,
+              url: c.sourceUrl
+            }))
+          };
+          console.log('WTF_COLLECTOR_SUMMARY=' + JSON.stringify(summary));
+          if (report.kept === 0) {
+            console.error('Collector returned zero kept candidates');
+            process.exit(1);
+          }
+          NODE
