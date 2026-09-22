@@ -1,0 +1,21 @@
+name: one-shot v0.6.3 gdelt diagnostics
+
+on:
+  push:
+    branches:
+      - fix/0.6.3-gdelt-fallback-diagnostics
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
+      - run: npm run typecheck
