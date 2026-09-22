@@ -13,22 +13,26 @@ Paid AI remains bounded: deterministic discovery/dedupe happens first and Scout 
 
 Direct feeds retained: UPI Odd News, three Phys.org lanes and three New Atlas lanes.
 
-GDELT DOC 2.0 ArticleList RSS is used as a discovery radar, not the publisher of record. After live
-testing showed HTTP 429s when five thematic requests were issued from one collection cycle, v0.6.2
-collapses discovery into one bounded 48-hour global query. Category/lane assignment is performed
-locally from the returned title/summary, so the external API is called only once per cycle. The
-underlying publisher URL remains the attribution and verification target.
+v0.6.4 adds two direct discovery feeds:
+- ScienceDaily Strange & Offbeat, using its official Strange & Offbeat RSS feed;
+- Smithsonian Smart News, using Smithsonian Magazine's official Smart News RSS feed.
 
-Set `WTF_ENABLE_GDELT=0` for an immediate kill switch.
+Both are link/discovery sources only. WTF Engine keeps canonical attribution and does not republish
+article bodies. Third-party media is not cached or displayed unless separately approved.
+
+GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
+thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
+available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection
+does not spend requests on it.
 
 ## Candidate sources not enabled by default
 
-- ScienceDaily Strange & Offbeat: excellent fit and frequent RSS, but RSS reuse terms require a
-  commercial-use review before promotion.
-- Smithsonian Smart News: excellent breadth, but Smithsonian content has commercial-use restrictions
-  unless permission/open-access status applies.
 - Guinness World Records: excellent recurring WTF material, but no public RSS endpoint was confirmed;
   enable only after a compliant discovery/licensing path exists.
+- Oddity Central: editorial fit is extremely strong and a legacy feed exists, but reuse/verification
+  policy should be reviewed before automatic promotion.
+- General sports/entertainment feeds: useful only if they do not swamp the 30-item paid Scout window;
+  prefer tightly filtered or official event/result sources over broad firehoses.
 
 ## Media strategy
 
