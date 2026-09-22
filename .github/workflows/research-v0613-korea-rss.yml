@@ -1,0 +1,67 @@
+name: Research v0.6.13 Korea RSS quality
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Score Korea.net category feeds
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { RssSource } = await import('./.tmp-build/src/ingest/rss.js');
+          const { prefilterDetailed } = await import('./.tmp-build/src/filters/pipeline.js');
+          const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
+
+          const feeds = [
+            ['Korea.net Culture', 'https://www.korea.net/koreanet/rss/news/7', 'culture'],
+            ['Korea.net Food Travel', 'https://www.korea.net/koreanet/rss/news/8', 'culture'],
+            ['Korea.net Sci Tech', 'https://www.korea.net/koreanet/rss/news/5', 'technology']
+          ];
+
+          for (const [name, url, categoryHint] of feeds) {
+            try {
+              const source = new RssSource({
+                name, url, language:'en', country:'KR', discoverySource:name,
+                categoryHint, mediaUsageStatus:'link-only'
+              });
+              const raw = await source.fetchCandidates();
+              const filtered = prefilterDetailed(raw);
+              const ranked = filtered.candidates
+                .map(candidate => ({
+                  candidate,
+                  score: preScoutPlayability(candidate).score
+                }))
+                .sort((a,b)=>b.score-a.score);
+
+              console.log('KOREA_FEED=' + JSON.stringify({
+                name,
+                raw:raw.length,
+                kept:filtered.candidates.length,
+                dropped:filtered.dropped,
+                top:ranked.slice(0,10).map(({candidate,score})=>({
+                  score,
+                  title:candidate.title,
+                  publishedAt:candidate.publishedAt,
+                  eventCountry:candidate.eventCountry,
+                  sourceUrl:candidate.sourceUrl
+                }))
+              }));
+            } catch (error) {
+              console.log('KOREA_FEED=' + JSON.stringify({
+                name, error:error instanceof Error ? error.message : String(error)
+              }));
+            }
+          }
+          NODE
