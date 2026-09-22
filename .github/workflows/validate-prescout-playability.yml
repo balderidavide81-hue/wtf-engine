@@ -24,10 +24,32 @@ jobs:
           const { collect } = await import('./.tmp-build/src/ingest/collect.js');
           const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
           const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
+          const { prefilterDetailed } = await import('./.tmp-build/src/filters/pipeline.js');
+
+          const sensitiveExamples = [
+            ['it-minors', 'Nisseno, trovate le sorelline scomparse'],
+            ['en-domestic', 'How rural policing gaps can make escaping domestic violence harder'],
+            ['fr-minor', 'Un enfant disparu retrouvé après plusieurs jours'],
+            ['es-kidnap', 'Secuestro de una menor investigado por la policía'],
+            ['pt-kidnap', 'Sequestro de criança mobiliza autoridades locais'],
+            ['id-kidnap', 'Penculikan anak sedang diselidiki polisi']
+          ];
+          for (const [id, title] of sensitiveExamples) {
+            const check = prefilterDetailed([{
+              id,
+              sourceName: 'synthetic',
+              sourceUrl: `https://example.com/${id}`,
+              title
+            }]);
+            if (check.candidates.length !== 0 || check.dropped.sensitive !== 1) {
+              throw new Error(`sensitivity fixture escaped prefilter: ${id}`);
+            }
+          }
 
           const report = await collect();
           if (report.kept < 30) throw new Error(`collector kept only ${report.kept} candidates`);
           const selected = selectScoutCandidates(report.candidates, 30);
+          const availableLanguages = [...new Set(report.candidates.map(c => c.language).filter(Boolean))];
           const rows = selected.map(candidate => ({
             score: preScoutPlayability(candidate).score,
             positive: preScoutPlayability(candidate).positiveSignals,
@@ -54,6 +76,7 @@ jobs:
             kept: report.kept,
             sensitiveDropped: report.dropped.sensitive,
             selected: selected.length,
+            availableLanguages,
             languages: countBy(c => c.language),
             sourceCountries: countBy(c => c.sourceCountry ?? c.country),
             eventCountries: countBy(c => c.eventCountry),
@@ -69,5 +92,9 @@ jobs:
           }
           if (rows.some(r => r.positive.length === 0 && r.negative.length > 0)) {
             throw new Error('paid Scout batch contains a negative-only candidate');
+          }
+          const selectedLanguageCount = new Set(selected.map(c => c.language).filter(Boolean)).size;
+          if (selectedLanguageCount < Math.min(5, availableLanguages.length)) {
+            throw new Error(`multilingual exploration under-covered live source languages: ${selectedLanguageCount}/${availableLanguages.length}`);
           }
           NODE
