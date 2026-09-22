@@ -35,7 +35,10 @@ export interface ArticleCandidate {
   summary?: string;
   body?: string;
   publishedAt?: string;
+  /** Best-effort language of the actual title/summary content. */
   language?: string;
+  /** Language configured for the source/feed edition before content detection. */
+  sourceLanguage?: string;
   /** Legacy source/edition geography; prefer sourceCountry for new code. */
   country?: string;
   /** Geography of the publisher/feed edition, not necessarily where the event happened. */

@@ -75,6 +75,11 @@ const NEGATIVE_RULES: SignalRule[] = [
     label: "generic-explainer",
     points: -10,
     pattern: /^(what|how|why|are |can |could |should |cosa |come |perché|perche|che cosa|pourquoi|comment|qu['’]est|qué |que |cómo|como |por qué|por que|o que|como |por que|apa |bagaimana|mengapa)\b/iu
+  },
+  {
+    label: "debunked-or-non-event",
+    points: -60,
+    pattern: /\b(no .{0,45}(?:on the loose|escaped?|wandering)|despite .{0,30}(?:claims?|video claims?)|false claims?|hoax|debunk\w*)\b/iu
   }
 ];
 

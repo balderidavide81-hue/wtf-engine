@@ -26,7 +26,7 @@ const COUNTRY_CODES = (
 // Country names that are also common personal names, places outside that country,
 // or ordinary words are intentionally excluded from generic free-text matching.
 const AMBIGUOUS_COUNTRY_NAMES = new Set([
-  "chad", "georgia", "guinea", "jordan", "mali", "turkey"
+  "chad", "congo", "georgia", "guinea", "jordan", "mali", "turkey"
 ]);
 
 const LOCATION_HINTS: LocationAlias[] = [
@@ -100,10 +100,30 @@ function normalize(value: string): string {
     .trim();
 }
 
-function matchesAlias(material: string, alias: string): boolean {
+interface AliasMatch extends LocationAlias {
+  start: number;
+  end: number;
+  specific: boolean;
+}
+
+function aliasMatches(material: string, entry: LocationAlias, specific: boolean): AliasMatch[] {
   const haystack = ` ${normalize(material)} `;
-  const needle = ` ${normalize(alias)} `;
-  return needle.trim().length >= 3 && haystack.includes(needle);
+  const needle = ` ${normalize(entry.alias)} `;
+  if (needle.trim().length < 3) return [];
+
+  const matches: AliasMatch[] = [];
+  let from = 0;
+  while (from < haystack.length) {
+    const start = haystack.indexOf(needle, from);
+    if (start < 0) break;
+    matches.push({ ...entry, start, end: start + needle.length, specific });
+    from = start + Math.max(1, needle.length - 1);
+  }
+  return matches;
+}
+
+function overlaps(a: AliasMatch, b: AliasMatch): boolean {
+  return a.start < b.end && a.end > b.start;
 }
 
 let generatedCountryAliases: LocationAlias[] | null = null;
@@ -132,8 +152,22 @@ function countryAliases(): LocationAlias[] {
 function detect(material: string): EventGeography {
   if (!material.trim()) return {};
 
-  const matches = [...LOCATION_HINTS, ...countryAliases()]
-    .filter(entry => matchesAlias(material, entry.alias));
+  const rawMatches = [
+    ...LOCATION_HINTS.flatMap(entry => aliasMatches(material, entry, true)),
+    ...countryAliases().flatMap(entry => aliasMatches(material, entry, false))
+  ].sort((a, b) => {
+    const length = (b.end - b.start) - (a.end - a.start);
+    if (length !== 0) return length;
+    return Number(b.specific) - Number(a.specific);
+  });
+
+  // Prefer the longest phrase when aliases overlap. This keeps "New Mexico"
+  // from also matching "Mexico", and "New Jersey" from also matching "Jersey".
+  const matches: AliasMatch[] = [];
+  for (const match of rawMatches) {
+    if (matches.some(kept => overlaps(match, kept))) continue;
+    matches.push(match);
+  }
 
   const countries = [...new Set(matches.map(match => match.country))];
   if (countries.length !== 1) return {};
@@ -141,7 +175,10 @@ function detect(material: string): EventGeography {
   const country = countries[0];
   const best = matches
     .filter(match => match.country === country)
-    .sort((a, b) => normalize(b.alias).length - normalize(a.alias).length)[0];
+    .sort((a, b) => {
+      if (a.specific !== b.specific) return Number(b.specific) - Number(a.specific);
+      return normalize(b.alias).length - normalize(a.alias).length;
+    })[0];
 
   return {
     eventCountry: country,

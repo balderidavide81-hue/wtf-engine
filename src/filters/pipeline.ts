@@ -4,10 +4,10 @@ import { canonicalizeUrl } from "../domain/url.js";
 
 const sensitive = [
   /\b(killed|murder|dead|death|fatal|suicide|rape|abuse|massacre|terror)\b/iu,
-  /\b(morto|morta|uccis[oa]|omicidio|suicidio|stupro|strage|terrorismo)\b/iu,
-  /\b(tué|tuée|meurtre|mort|décès|suicide|viol|abus|massacre|terrorisme)\b/iu,
-  /\b(muerto|muerta|muerte|asesinad[oa]|homicidio|suicidio|violación|abuso|masacre|terrorismo)\b/iu,
-  /\b(morto|morta|morte|assassinado|assassinada|homicídio|suicídio|estupro|abuso|massacre|terrorismo)\b/iu,
+  /\b(mort[oaie]|uccis\p{L}*|omicidio|suicidio|stupro|strage|terrorismo)\b/iu,
+  /\b(tué\p{L}*|meurtre|mort\p{L}*|décès|suicide|viol|abus|massacre|terrorisme)\b/iu,
+  /\b(muert\p{L}*|asesinad\p{L}*|homicidio|suicidio|violación|abuso|masacre|terrorismo)\b/iu,
+  /\b(mort\p{L}*|assassinad\p{L}*|homicídio|suicídio|estupro|abuso|massacre|terrorismo)\b/iu,
   /\b(tewas|meninggal|dibunuh|pembunuhan|bunuh diri|pemerkosaan|pelecehan|pembantaian|terorisme)\b/iu,
   /\b(missing child|missing children|kidnap\w*|domestic violence)\b/iu,
   /\b(sequestro di persona|violenza domestica)\b/iu,
@@ -48,6 +48,7 @@ export interface PrefilterReport {
     sensitive: number;
     duplicateUrlOrTitle: number;
     nearDuplicateTitle: number;
+    nearDuplicateSummary: number;
   };
 }
 
@@ -55,7 +56,14 @@ export function prefilterDetailed(candidates: ArticleCandidate[]): PrefilterRepo
   const seenUrls = new Set<string>();
   const seenTitles = new Set<string>();
   const acceptedTitles: string[] = [];
-  const dropped = { insufficient: 0, sensitive: 0, duplicateUrlOrTitle: 0, nearDuplicateTitle: 0 };
+  const acceptedSummaries: string[] = [];
+  const dropped = {
+    insufficient: 0,
+    sensitive: 0,
+    duplicateUrlOrTitle: 0,
+    nearDuplicateTitle: 0,
+    nearDuplicateSummary: 0
+  };
   const accepted: ArticleCandidate[] = [];
 
   for (const candidate of candidates) {
@@ -74,9 +82,20 @@ export function prefilterDetailed(candidates: ArticleCandidate[]): PrefilterRepo
       continue;
     }
 
+    const summary = candidate.summary?.trim();
+    if (
+      summary
+      && summary.length >= 120
+      && acceptedSummaries.some(previous => titleSimilarity(previous, summary) >= 0.90)
+    ) {
+      dropped.nearDuplicateSummary++;
+      continue;
+    }
+
     seenUrls.add(url);
     seenTitles.add(title);
     acceptedTitles.push(candidate.title);
+    if (summary && summary.length >= 120) acceptedSummaries.push(summary);
     accepted.push(candidate);
   }
 

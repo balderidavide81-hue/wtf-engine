@@ -3,6 +3,7 @@ import type { ArticleCandidate, GameCategory, MediaUsageStatus } from "../domain
 import type { NewsSource } from "./index.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
 import { extractEventGeography } from "../geo/extract.js";
+import { detectContentLanguage } from "./language.js";
 
 export interface RssSourceConfig {
   name: string;
@@ -44,10 +45,36 @@ function text(value: unknown): string | undefined {
   return undefined;
 }
 
+function decodeHtmlEntities(value: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    quot: '"',
+    lt: "<",
+    gt: ">",
+    nbsp: " "
+  };
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|apos|quot|lt|gt|nbsp);/gi, (match, token: string) => {
+    if (token[0] !== "#") return named[token.toLowerCase()] ?? match;
+    const hex = /^#x/i.test(token);
+    const raw = hex ? token.slice(2) : token.slice(1);
+    const codePoint = Number.parseInt(raw, hex ? 16 : 10);
+    if (!Number.isInteger(codePoint) || codePoint <= 0 || codePoint > 0x10ffff) return match;
+    if (codePoint >= 0xd800 && codePoint <= 0xdfff) return match;
+    try {
+      return String.fromCodePoint(codePoint);
+    } catch {
+      return match;
+    }
+  });
+}
+
 function cleanFeedText(value: unknown, maxChars: number): string | undefined {
   const raw = text(value);
   if (!raw) return undefined;
-  const cleaned = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = decodeHtmlEntities(raw.replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
   return cleaned ? cleaned.slice(0, maxChars) : undefined;
 }
 
@@ -222,6 +249,7 @@ export class RssSource implements NewsSource {
         summary,
         locationHint: locationHintFromItem(item)
       });
+      const language = detectContentLanguage(title, summary, this.config.language);
 
       return [{
         id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${canonicalLink}`,
@@ -230,7 +258,8 @@ export class RssSource implements NewsSource {
         title,
         summary,
         publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
-        language: this.config.language,
+        language,
+        sourceLanguage: this.config.language,
         country: this.config.country,
         sourceCountry: this.config.country,
         eventCountry: geography.eventCountry,

@@ -162,6 +162,7 @@ function compactEditorItem(item: { candidate: ArticleCandidate; scout: ScoutResu
       summary: item.candidate.summary ?? null,
       publishedAt: item.candidate.publishedAt ?? null,
       language: item.candidate.language ?? null,
+      sourceLanguage: item.candidate.sourceLanguage ?? null,
       sourceCountry: item.candidate.sourceCountry ?? item.candidate.country ?? null,
       eventCountry: item.candidate.eventCountry ?? null,
       eventLocation: item.candidate.eventLocation ?? null,

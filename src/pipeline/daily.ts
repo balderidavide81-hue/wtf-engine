@@ -39,6 +39,15 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
   const isQualityCandidate = (candidate: ArticleCandidate) =>
     preScoutPlayability(candidate).score >= minimumQualityScore;
 
+  const countryWithinCap = (candidate: ArticleCandidate) => {
+    const country = sourceGeography(candidate);
+    // GLOBAL/AFRICA/UNKNOWN are source regions, not countries. Publisher caps
+    // already protect diversity there; do not let one regional label block
+    // unrelated global publishers.
+    if (!/^[A-Z]{2}$/.test(country)) return true;
+    return (perCountry.get(country) ?? 0) < countryCap;
+  };
+
   // Pass 1: reserve roughly two thirds of the paid window for candidates with
   // deterministic playability signals while protecting publisher/topic/geography breadth.
   for (const candidate of sorted) {
@@ -48,7 +57,7 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     const country = sourceGeography(candidate);
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
     if ((perLane.get(lane) ?? 0) >= laneCap) continue;
-    if ((perCountry.get(country) ?? 0) >= countryCap) continue;
+    if (!countryWithinCap(candidate)) continue;
     add(candidate);
   }
 
@@ -58,19 +67,11 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     if (used.has(candidate.id) || !isQualityCandidate(candidate)) continue;
     const country = sourceGeography(candidate);
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
-    if ((perCountry.get(country) ?? 0) >= countryCap) continue;
+    if (!countryWithinCap(candidate)) continue;
     add(candidate);
   }
 
-  // Pass 3: if quality exists but is concentrated in a few feeds, prefer paying
-  // Scout for that quality rather than filling the reserved block with generic news.
-  for (const candidate of sorted) {
-    if (selected.length >= qualityTarget) break;
-    if (used.has(candidate.id) || !isQualityCandidate(candidate)) continue;
-    add(candidate);
-  }
-
-  // Pass 4: use the exploration budget to cover source languages that the
+  // Pass 3: use the exploration budget to cover source languages that the
   // quality block did not represent, when live candidates are available.
   const availableLanguages = new Set(
     sorted.map(candidate => candidate.language?.trim()).filter((value): value is string => Boolean(value))
@@ -82,22 +83,22 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
       !used.has(item.id)
       && item.language?.trim() === language
       && (perSource.get(item.sourceName) ?? 0) < sourceCap
-      && (perCountry.get(sourceGeography(item)) ?? 0) < countryCap
+      && countryWithinCap(item)
     );
     if (candidate) add(candidate);
   }
 
-  // Pass 5: spend the remaining exploration slots while retaining publisher/geography breadth.
+  // Pass 4: spend the remaining exploration slots while retaining publisher/geography breadth.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
     const country = sourceGeography(candidate);
     if ((perSource.get(candidate.sourceName) ?? 0) >= sourceCap) continue;
-    if ((perCountry.get(country) ?? 0) >= countryCap) continue;
+    if (!countryWithinCap(candidate)) continue;
     add(candidate);
   }
 
-  // Pass 6: never leave paid capacity unused when the discovery pool is smaller/imbalanced.
+  // Pass 5: never leave paid capacity unused when the discovery pool is smaller/imbalanced.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
