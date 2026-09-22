@@ -50,6 +50,13 @@ The broad regional feeds supplied useful language coverage, but four non-English
 exploration items were all rejected, while two English publishers surfaced the same wild-dog journey.
 v0.6.10 therefore improves source fit and duplicate control instead of lowering the quality threshold.
 
+Live v0.6.10 validation:
+- all four new focused feeds returned 20 candidates each with zero source errors;
+- a 30-item no-AI selection represented English, Italian, French, Spanish, Brazilian Portuguese and Indonesian;
+- French/Italian/Spanish/Portuguese exploration slots came from the focused curiosity feeds instead of broad The Conversation editions;
+- the real wild-dog paraphrase pair is removed by the semantic dedupe fixture;
+- no near-story duplicate pair survived in the selected 30-item validation batch.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection
