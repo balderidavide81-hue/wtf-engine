@@ -3,7 +3,7 @@ import { hasMinimumContent } from "./index.js";
 import { canonicalizeUrl } from "../domain/url.js";
 
 const sensitive = [
-  /\b(killed|murder|dead|death|fatal|suicide|rape|abuse|massacre|terror)\b/iu,
+  /\b(kill(?:ed|ing|s)?|murder(?:ed|ing|s)?|dead|died|death(?:s)?|fatal(?:ity|ities)?|suicide|rape|abuse|massacre|terror)\b/iu,
   /\b(mort[oaie]|uccis\p{L}*|omicidio|suicidio|stupro|strage|terrorismo)\b/iu,
   /\b(tué\p{L}*|meurtre|mort\p{L}*|décès|suicide|viol|abus|massacre|terrorisme)\b/iu,
   /\b(muert\p{L}*|asesinad\p{L}*|homicidio|suicidio|violación|abuso|masacre|terrorismo)\b/iu,
