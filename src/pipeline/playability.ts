@@ -100,8 +100,21 @@ function withoutDiacritics(value: string): string {
   return value.normalize("NFKD").replace(/\p{M}+/gu, "");
 }
 
+const NORMALIZED_PATTERNS = new Map<string, RegExp>();
+
+function normalizedPattern(pattern: RegExp): RegExp {
+  const key = `${pattern.source}/${pattern.flags}`;
+  const cached = NORMALIZED_PATTERNS.get(key);
+  if (cached) return cached;
+
+  const normalized = new RegExp(withoutDiacritics(pattern.source), pattern.flags);
+  NORMALIZED_PATTERNS.set(key, normalized);
+  return normalized;
+}
+
 function matchesRule(rule: SignalRule, value: string): boolean {
-  return rule.pattern.test(value) || rule.pattern.test(withoutDiacritics(value));
+  return rule.pattern.test(value)
+    || normalizedPattern(rule.pattern).test(withoutDiacritics(value));
 }
 
 export function preScoutPlayability(candidate: ArticleCandidate): PreScoutPlayability {
