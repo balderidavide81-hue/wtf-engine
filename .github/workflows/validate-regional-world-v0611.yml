@@ -1,5 +1,7 @@
 name: Validate v0.6.11 regional world sources
 
+# Re-run after Clarín timeout/retry tuning
+
 on:
   pull_request:
     branches: [main]
