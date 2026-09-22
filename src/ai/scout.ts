@@ -122,6 +122,7 @@ function compactCandidate(candidate: ArticleCandidate, candidateRef: string) {
     summary: candidate.summary ?? null,
     publishedAt: candidate.publishedAt ?? null,
     language: candidate.language ?? null,
+      sourceLanguage: item?.candidate?.sourceLanguage ?? candidate?.sourceLanguage ?? null,
     sourceCountry: candidate.sourceCountry ?? candidate.country ?? null,
     eventCountry: candidate.eventCountry ?? null,
     eventLocation: candidate.eventLocation ?? null,
