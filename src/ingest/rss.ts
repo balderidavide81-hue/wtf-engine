@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import type { ArticleCandidate, GameCategory, MediaUsageStatus } from "../domain/types.js";
 import type { NewsSource } from "./index.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
+import { extractEventGeography } from "../geo/extract.js";
 
 export interface RssSourceConfig {
   name: string;
@@ -115,6 +116,13 @@ function imageAltFromItem(item: FeedItem): string | undefined {
     ?? cleanFeedText(item["media:description"], MAX_ALT_CHARS);
 }
 
+function locationHintFromItem(item: FeedItem): string | undefined {
+  return cleanFeedText(item["georss:featureName"], 240)
+    ?? cleanFeedText(item["dc:coverage"], 240)
+    ?? cleanFeedText(item["geo:location"], 240)
+    ?? cleanFeedText(item.location, 240);
+}
+
 function publisherName(item: FeedItem, canonicalLink: string, config: RssSourceConfig): string {
   if (config.sourceNameStrategy !== "item-or-hostname") return config.name;
   const itemSource = cleanFeedText(item.source, MAX_SOURCE_NAME_CHARS);
@@ -154,13 +162,21 @@ export class RssSource implements NewsSource {
 
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       try {
-        const response = await fetch(this.config.url, {
-          headers: {
-            "user-agent": "wtf-engine/0.6 (+editorial discovery)",
-            "accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5"
-          },
-          signal: AbortSignal.timeout(this.config.timeoutMs ?? 10_000)
-        });
+        const controller = new AbortController();
+        const timeoutMs = this.config.timeoutMs ?? 10_000;
+        const timeout = setTimeout(() => controller.abort(new Error(`${this.name}: timeout after ${timeoutMs}ms`)), timeoutMs);
+        let response: Response;
+        try {
+          response = await fetch(this.config.url, {
+            headers: {
+              "user-agent": "wtf-engine/0.6 (+editorial discovery)",
+              "accept": "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5"
+            },
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
 
         if (response.ok) return response;
         lastError = new Error(`${this.name}: HTTP ${response.status}`);
@@ -197,18 +213,28 @@ export class RssSource implements NewsSource {
       const canonicalLink = articleLink(item);
       if (!title || !canonicalLink) return [];
 
+      const summary =
+        cleanFeedText(item.description, MAX_SUMMARY_CHARS)
+        ?? cleanFeedText(item.summary, MAX_SUMMARY_CHARS)
+        ?? cleanFeedText(item.content, MAX_SUMMARY_CHARS);
+      const geography = extractEventGeography({
+        title,
+        summary,
+        locationHint: locationHintFromItem(item)
+      });
+
       return [{
         id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${canonicalLink}`,
         sourceName: publisherName(item, canonicalLink, this.config),
         sourceUrl: canonicalLink,
         title,
-        summary:
-          cleanFeedText(item.description, MAX_SUMMARY_CHARS)
-          ?? cleanFeedText(item.summary, MAX_SUMMARY_CHARS)
-          ?? cleanFeedText(item.content, MAX_SUMMARY_CHARS),
+        summary,
         publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
         language: this.config.language,
         country: this.config.country,
+        sourceCountry: this.config.country,
+        eventCountry: geography.eventCountry,
+        eventLocation: geography.eventLocation,
         imageUrl: imageFromItem(item),
         imageAlt: imageAltFromItem(item),
         discoverySource: this.config.discoverySource ?? this.config.name,

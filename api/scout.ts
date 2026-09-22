@@ -26,7 +26,10 @@ function isCandidate(value: unknown): value is ArticleCandidate {
     && (c.body === undefined || (typeof c.body === "string" && c.body.length <= MAX_FIELD_CHARS))
     && (c.publishedAt === undefined || (typeof c.publishedAt === "string" && c.publishedAt.length <= MAX_FIELD_CHARS))
     && (c.language === undefined || (typeof c.language === "string" && c.language.length <= MAX_FIELD_CHARS))
-    && (c.country === undefined || (typeof c.country === "string" && c.country.length <= MAX_FIELD_CHARS));
+    && (c.country === undefined || (typeof c.country === "string" && c.country.length <= MAX_FIELD_CHARS))
+    && (c.sourceCountry === undefined || (typeof c.sourceCountry === "string" && c.sourceCountry.length <= MAX_FIELD_CHARS))
+    && (c.eventCountry === undefined || (typeof c.eventCountry === "string" && c.eventCountry.length <= MAX_FIELD_CHARS))
+    && (c.eventLocation === undefined || (typeof c.eventLocation === "string" && c.eventLocation.length <= MAX_FIELD_CHARS));
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

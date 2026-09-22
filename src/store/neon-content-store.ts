@@ -633,7 +633,7 @@ export class NeonContentStore implements ContentStore {
            last_seen_at=now()
          where id=$1`,
         [articleId, candidate.id, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
-         candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null,
+         candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.sourceCountry ?? candidate.country ?? null,
          candidate.imageUrl ?? null, candidate.imageAlt ?? null, candidate.discoverySource ?? null,
          candidate.categoryHint ?? null, candidate.mediaUsageStatus ?? "unreviewed"]
       );
@@ -647,7 +647,7 @@ export class NeonContentStore implements ContentStore {
        values ($1,$2,$3,$4,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        returning id`,
       [candidate.id, source.rows[0].id, candidate.sourceName, candidate.sourceUrl, candidate.title,
-       candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.country ?? null,
+       candidate.summary ?? null, candidate.publishedAt ?? null, candidate.language ?? null, candidate.sourceCountry ?? candidate.country ?? null,
        candidate.imageUrl ?? null, candidate.imageAlt ?? null, candidate.discoverySource ?? null,
        candidate.categoryHint ?? null, candidate.mediaUsageStatus ?? "unreviewed"]
     );

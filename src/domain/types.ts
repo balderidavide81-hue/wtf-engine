@@ -36,7 +36,14 @@ export interface ArticleCandidate {
   body?: string;
   publishedAt?: string;
   language?: string;
+  /** Legacy source/edition geography; prefer sourceCountry for new code. */
   country?: string;
+  /** Geography of the publisher/feed edition, not necessarily where the event happened. */
+  sourceCountry?: string;
+  /** ISO-3166 alpha-2 code inferred only when the event geography is explicit enough. */
+  eventCountry?: string;
+  /** Human-readable explicit location hint associated with eventCountry. */
+  eventLocation?: string;
   imageUrl?: string;
   imageAlt?: string;
   discoverySource?: string;
