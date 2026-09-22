@@ -1,0 +1,92 @@
+name: Validate v0.6.12 Africa RDF source
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Validate RDF parsing, safety and Scout selection
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { RssSource } = await import('./.tmp-build/src/ingest/rss.js');
+          const { prefilterDetailed } = await import('./.tmp-build/src/filters/pipeline.js');
+          const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
+          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
+          const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
+
+          const source = new RssSource({
+            name: 'AllAfrica Wildlife',
+            url: 'https://allafrica.com/tools/headlines/rdf/wildlife/headlines.rdf',
+            language: 'en',
+            country: 'AFRICA',
+            discoverySource: 'AllAfrica Wildlife',
+            categoryHint: 'animals',
+            mediaUsageStatus: 'link-only'
+          });
+
+          const raw = await source.fetchCandidates();
+          console.log('ALLAFRICA_RAW=' + JSON.stringify(raw.map(candidate => ({
+            title: candidate.title,
+            eventCountry: candidate.eventCountry,
+            score: preScoutPlayability(candidate).score
+          }))));
+
+          if (raw.length < 10) throw new Error('AllAfrica Wildlife returned too few parsed RDF items: ' + raw.length);
+
+          const namibia = raw.find(candidate => /^Namibia:/i.test(candidate.title));
+          if (namibia && namibia.eventCountry !== 'NA') {
+            throw new Error('Namibia geography extraction failed: ' + JSON.stringify(namibia));
+          }
+
+          const sensitiveRaw = raw.filter(candidate => /\b(killed|dead|death|fatal|murder)\b/i.test(`${candidate.title} ${candidate.summary ?? ''}`));
+          const filtered = prefilterDetailed(raw);
+          for (const candidate of sensitiveRaw) {
+            if (filtered.candidates.some(kept => kept.id === candidate.id)) {
+              throw new Error('Sensitive AllAfrica candidate survived prefilter: ' + candidate.title);
+            }
+          }
+
+          const report = await collect();
+          const selected = selectScoutCandidates(report.candidates, 30);
+          const africaSelected = selected.filter(candidate => candidate.discoverySource === 'AllAfrica Wildlife');
+          const africaKept = report.candidates.filter(candidate => candidate.discoverySource === 'AllAfrica Wildlife');
+
+          console.log('ALLAFRICA_GATE=' + JSON.stringify({
+            raw: raw.length,
+            afterStandalonePrefilter: filtered.candidates.length,
+            standaloneDropped: filtered.dropped,
+            fullCollector: {
+              sourceCount: report.sourceCount,
+              fetched: report.fetched,
+              kept: report.kept,
+              errors: report.errors,
+              dropped: report.dropped
+            },
+            africaKept: africaKept.map(candidate => ({
+              title: candidate.title,
+              eventCountry: candidate.eventCountry,
+              score: preScoutPlayability(candidate).score
+            })),
+            africaSelected: africaSelected.map(candidate => ({
+              title: candidate.title,
+              eventCountry: candidate.eventCountry,
+              score: preScoutPlayability(candidate).score
+            }))
+          }));
+
+          if (africaKept.length < 1) throw new Error('AllAfrica Wildlife produced no safe candidates');
+          if (africaSelected.length < 1) throw new Error('AllAfrica Wildlife did not earn a pre-Scout slot');
+          NODE
