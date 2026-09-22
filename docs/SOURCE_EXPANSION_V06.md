@@ -57,6 +57,19 @@ Live v0.6.10 validation:
 - the real wild-dog paraphrase pair is removed by the semantic dedupe fixture;
 - no near-story duplicate pair survived in the selected 30-item validation batch.
 
+v0.6.11 expands the world-source search without accepting low-yield feeds merely for geography.
+Live evaluation initially tested six regional feeds across Argentina, South Africa, Kenya and Japan.
+All became technically reachable after a bounded Clarín retry, but only Clarín Autos earned a place in
+the current 30-item deterministic selection. TimesLIVE Lifestyle/Motoring, The Standard
+Magazines/Entertainment and Global Voices Japan were therefore removed again rather than permanently
+inflating collection volume.
+
+The Japan slot was replaced by The Tokyo, whose Atom/JSON programmatic feeds are free and whose
+site-authored excerpts/metadata are CC BY 4.0. Its recent coverage contains the sort of locally specific
+oddities the game needs, while still linking and attributing the original publishers. Africa remains an
+open source-quality gap: current candidates either tested too generic or have reuse terms unsuitable for
+the planned mobile/commercial product.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection
