@@ -187,14 +187,31 @@ Merged source changes:
 
 The v0.6.16 source passed Node 22 typecheck and is merged on `main`.
 
+## v0.6.17 deterministic quality gate
+
+Source-only hardening adds deterministic checks that do not require another model call:
+
+- reject MULTIPLE_CHOICE cards when the exact correct answer is already present in the hook;
+- reject obvious TRUE_FALSE cards whose claim is repeated verbatim in the hook;
+- allow TRUE_FALSE labels in either order;
+- deterministically distribute TRUE_FALSE correct-answer positions as well as MULTIPLE_CHOICE positions;
+- revalidate the final card after option rotation.
+
+Validation passed with the real emu-style leakage pattern, exact-number leakage, TRUE_FALSE repetition,
+and synthetic distribution checks covering both TRUE_FALSE indexes and all four MULTIPLE_CHOICE indexes
+without changing which option is correct.
+
+Prompt version after this hardening: `editor/inline-v0.7-deterministic-quality`.
+
 ## Current deployment state
 
-The production deployment for the v0.6.16 commit was rejected by Vercel with:
+The production deployment for the v0.6.16/v0.6.17 source line remains blocked by Vercel build rate
+limiting:
 
 `Deployment rate limited — retry in 24 hours.`
 
-Therefore the post-hardening 16-card regeneration could not be executed in this session. The last
-successful live Editor output is the v0.6.15 baseline described above.
+Therefore the post-hardening 16-card regeneration has still not been executed. The last successful live
+Editor output remains the v0.6.15 baseline described above.
 
 All deployed Editor probe leases used during the test were locked through 2099 before source cleanup,
 so the still-live older deployment cannot accidentally trigger another paid probe.
