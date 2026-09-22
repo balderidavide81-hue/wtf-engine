@@ -17,6 +17,7 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
   const perSource = new Map<string, number>();
   const perLane = new Map<string, number>();
   const perCountry = new Map<string, number>();
+  const perLanguage = new Map<string, number>();
   const sourceCap = Math.max(2, Math.ceil(limit / 5));
   const laneCap = Math.max(2, Math.ceil(limit / 6));
   const countryCap = Math.max(2, Math.ceil(limit / 5));
@@ -31,6 +32,8 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     perLane.set(lane, (perLane.get(lane) ?? 0) + 1);
     const country = sourceGeography(candidate);
     perCountry.set(country, (perCountry.get(country) ?? 0) + 1);
+    const language = candidate.language?.trim() || "UNKNOWN";
+    perLanguage.set(language, (perLanguage.get(language) ?? 0) + 1);
   };
 
   const isQualityCandidate = (candidate: ArticleCandidate) =>
@@ -67,7 +70,24 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     add(candidate);
   }
 
-  // Pass 4: reserve the rest for global exploration, retaining publisher/geography caps.
+  // Pass 4: use the exploration budget to cover source languages that the
+  // quality block did not represent, when live candidates are available.
+  const availableLanguages = new Set(
+    sorted.map(candidate => candidate.language?.trim()).filter((value): value is string => Boolean(value))
+  );
+  for (const language of availableLanguages) {
+    if (selected.length >= limit) break;
+    if ((perLanguage.get(language) ?? 0) > 0) continue;
+    const candidate = sorted.find(item =>
+      !used.has(item.id)
+      && item.language?.trim() === language
+      && (perSource.get(item.sourceName) ?? 0) < sourceCap
+      && (perCountry.get(sourceGeography(item)) ?? 0) < countryCap
+    );
+    if (candidate) add(candidate);
+  }
+
+  // Pass 5: spend the remaining exploration slots while retaining publisher/geography breadth.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
@@ -77,7 +97,7 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     add(candidate);
   }
 
-  // Pass 5: never leave paid capacity unused when the discovery pool is smaller/imbalanced.
+  // Pass 6: never leave paid capacity unused when the discovery pool is smaller/imbalanced.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
