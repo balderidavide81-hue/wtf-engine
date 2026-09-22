@@ -1,0 +1,67 @@
+name: Research v0.6.13 The Tokyo search API
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Probe public API schema and targeted searches
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          async function getJson(label, url) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 15000);
+            try {
+              const res = await fetch(url, {
+                headers: { 'user-agent': 'wtf-engine-source-research/0.6.13' },
+                redirect: 'follow',
+                signal: controller.signal
+              });
+              const text = await res.text();
+              let json = null;
+              try { json = JSON.parse(text); } catch {}
+              console.log('TOKYO_API=' + JSON.stringify({
+                label,
+                url,
+                status: res.status,
+                contentType: res.headers.get('content-type'),
+                bytes: text.length,
+                topKeys: json && typeof json === 'object' ? Object.keys(json).slice(0, 30) : [],
+                sample: json ?? text.slice(0, 1200)
+              }));
+            } catch (error) {
+              console.log('TOKYO_API=' + JSON.stringify({
+                label,
+                url,
+                error: error instanceof Error ? error.message : String(error)
+              }));
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+
+          await getJson('index', 'https://thetokyo.org/api/v1/index.json');
+          await getJson('openapi', 'https://thetokyo.org/api/openapi.json');
+
+          const queries = [
+            'weird unusual bizarre strange Tokyo Japan',
+            'odd unusual animal Tokyo Japan',
+            'strange record bizarre event Japan',
+            'unusual technology robot vending machine Japan',
+            'weird food unusual festival Japan'
+          ];
+          for (const q of queries) {
+            await getJson('search:' + q, 'https://thetokyo.org/api/llm-search?q=' + encodeURIComponent(q));
+          }
+          NODE
