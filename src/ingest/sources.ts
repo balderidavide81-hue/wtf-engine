@@ -106,7 +106,10 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     country: "JP",
     discoverySource: "The Tokyo Japan Discovery",
     categoryHint: "culture",
-    mediaUsageStatus: "link-only"
+    mediaUsageStatus: "link-only",
+    timeoutMs: 20_000,
+    retryCount: 1,
+    retryDelayMs: 1_500
   },
 
   // The Conversation operates local editions around the world and publishes
