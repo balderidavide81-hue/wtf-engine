@@ -1,0 +1,116 @@
+name: Validate global story geography
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Validate deterministic geography and live global selection
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { extractEventGeography } = await import('./.tmp-build/src/geo/extract.js');
+          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
+          const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
+
+          const checks = [
+            ['Taipei', extractEventGeography({ title: 'Two chimpanzees escape enclosure at Taipei Zoo' }).eventCountry, 'TW'],
+            ['Florida', extractEventGeography({ title: 'White emu found wandering loose on Florida highway' }).eventCountry, 'US'],
+            ['Madrid', extractEventGeography({ title: 'Una historia insólita ocurrida en Madrid' }).eventCountry, 'ES'],
+            ['multi-country', extractEventGeography({ title: 'France and Italy discuss a joint project' }).eventCountry ?? null, null],
+            ['Georgia ambiguous', extractEventGeography({ title: 'Georgia announces unusual festival' }).eventCountry ?? null, null]
+          ];
+          for (const [label, actual, expected] of checks) {
+            console.log('geo_check', label, { actual, expected });
+            if (actual !== expected) throw new Error(`geography check failed: ${label}`);
+          }
+
+          const report = await collect();
+          if (report.errors.length) throw new Error('source errors: ' + JSON.stringify(report.errors));
+          const selected = selectScoutCandidates(report.candidates, 30);
+          if (selected.length !== 30) throw new Error(`expected 30 selected candidates, got ${selected.length}`);
+
+          const countBy = (items, getter) => {
+            const counts = {};
+            for (const item of items) {
+              const key = getter(item) ?? 'UNKNOWN';
+              counts[key] = (counts[key] ?? 0) + 1;
+            }
+            return Object.fromEntries(Object.entries(counts).sort((a,b) => b[1]-a[1]));
+          };
+
+          const withEventCountry = selected.filter(c => c.eventCountry).length;
+          const languages = countBy(selected, c => c.language);
+          const sourceCountries = countBy(selected, c => c.sourceCountry ?? c.country);
+          const eventCountries = countBy(selected, c => c.eventCountry);
+          console.log('GLOBAL_SELECTION=' + JSON.stringify({
+            fetched: report.fetched,
+            kept: report.kept,
+            selected: selected.length,
+            withEventCountry,
+            languages,
+            sourceCountries,
+            eventCountries,
+            candidates: selected.map(c => ({
+              id: c.id,
+              source: c.sourceName,
+              language: c.language,
+              sourceCountry: c.sourceCountry ?? c.country,
+              eventCountry: c.eventCountry,
+              eventLocation: c.eventLocation,
+              title: c.title,
+              summary: c.summary
+            }))
+          }));
+          if (Object.keys(languages).filter(k => k !== 'UNKNOWN').length < 3) {
+            throw new Error('global selection contains fewer than 3 languages');
+          }
+          if (withEventCountry < 5) {
+            throw new Error(`too few selected candidates have deterministic event geography: ${withEventCountry}`);
+          }
+          NODE
+
+      - name: Run real Luna Scout when repository key is available
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
+          const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
+          const { OpenAIScout } = await import('./.tmp-build/src/ai/scout.js');
+          const report = await collect();
+          const selected = selectScoutCandidates(report.candidates, 30);
+          const batch = await new OpenAIScout(process.env.OPENAI_API_KEY).classifyDetailed(selected);
+          console.log('REAL_SCOUT=' + JSON.stringify({
+            usage: batch.usage,
+            results: batch.results.map(result => {
+              const candidate = selected.find(c => c.id === result.articleId);
+              return {
+                ...result,
+                title: candidate?.title,
+                language: candidate?.language,
+                sourceCountry: candidate?.sourceCountry ?? candidate?.country,
+                eventCountry: candidate?.eventCountry
+              };
+            })
+          }));
+          NODE
+
+      - name: Report unavailable Scout key
+        if: ${{ env.OPENAI_API_KEY == '' }}
+        run: echo "REAL_SCOUT_SKIPPED=no repository OPENAI_API_KEY secret"
