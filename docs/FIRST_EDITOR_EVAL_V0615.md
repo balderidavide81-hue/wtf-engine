@@ -229,5 +229,10 @@ When a deployment containing v0.6.16 is available, rerun the same frozen 16 inpu
 - schema/cardinality;
 - measured Editor cost.
 
-Only after that comparison should the normal daily pipeline be allowed to persist/publish generated
-cards automatically.
+The post-hardening comparison has now been completed and is documented in
+`docs/SECOND_EDITOR_EVAL_V0617.md`.
+
+The result is materially improved, but two narrow defects remain before automatic publication:
+semantic/paraphrased answer leakage in hooks and non-uniform batch-level answer positions. Persisting
+generated cards as drafts for editorial review is reasonable after the next hardening pass; automatic
+publication should remain gated.
