@@ -68,8 +68,8 @@ const NEGATIVE_RULES: SignalRule[] = [
   },
   {
     label: "policy-politics",
-    points: -16,
-    pattern: /\b(regulation|policy|government|parliament|election|minister|politic|regolament|governo|parlamento|elezion|ministro|réglement|gouvernement|parlement|élection|ministre|regulación|gobierno|parlamento|elección|ministro|regulação|governo|parlamento|eleição|ministro|regulasi|pemerintah|parlemen|pemilu|menteri)\b/iu
+    points: -24,
+    pattern: /\b(regulation\w*|policy|government\w*|parliament\w*|election\w*|referendum\w*|minister\w*|politic\w*|regolament\w*|governo|parlamento|elezion\w*|referendum\w*|ministr\w*|réglement\w*|gouvernement\w*|parlement\w*|élection\w*|référendum\w*|ministr\w*|regulación\w*|gobierno|parlamento|elecci\w*|referéndum\w*|ministr\w*|regulação\w*|governo|parlamento|eleiç\w*|referendo\w*|ministr\w*|regulasi|pemerintah|parlemen|pemilu|referendum|menteri)\b/iu
   },
   {
     label: "generic-explainer",
