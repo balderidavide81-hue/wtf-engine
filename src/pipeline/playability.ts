@@ -90,6 +90,14 @@ function material(candidate: ArticleCandidate): string {
   return `${candidate.title} ${candidate.summary ?? ""}`;
 }
 
+function withoutDiacritics(value: string): string {
+  return value.normalize("NFKD").replace(/\p{M}+/gu, "");
+}
+
+function matchesRule(rule: SignalRule, value: string): boolean {
+  return rule.pattern.test(value) || rule.pattern.test(withoutDiacritics(value));
+}
+
 export function preScoutPlayability(candidate: ArticleCandidate): PreScoutPlayability {
   const positiveText = candidate.title;
   const negativeText = material(candidate);
@@ -105,7 +113,7 @@ export function preScoutPlayability(candidate: ArticleCandidate): PreScoutPlayab
   }
 
   for (const rule of POSITIVE_RULES) {
-    if (!rule.pattern.test(positiveText)) continue;
+    if (!matchesRule(rule, positiveText)) continue;
     score += rule.points;
     positiveSignals.push(rule.label);
   }
@@ -119,7 +127,7 @@ export function preScoutPlayability(candidate: ArticleCandidate): PreScoutPlayab
   }
 
   for (const rule of NEGATIVE_RULES) {
-    if (!rule.pattern.test(negativeText)) continue;
+    if (!matchesRule(rule, negativeText)) continue;
     score += rule.points;
     negativeSignals.push(rule.label);
   }
