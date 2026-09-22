@@ -149,8 +149,14 @@ function countryAliases(): LocationAlias[] {
   return generatedCountryAliases;
 }
 
-function detect(material: string): EventGeography {
-  if (!material.trim()) return {};
+interface GeographyDetection {
+  geography: EventGeography;
+  countries: string[];
+  matches: AliasMatch[];
+}
+
+function collectMatches(material: string): AliasMatch[] {
+  if (!material.trim()) return [];
 
   const rawMatches = [
     ...LOCATION_HINTS.flatMap(entry => aliasMatches(material, entry, true)),
@@ -168,9 +174,12 @@ function detect(material: string): EventGeography {
     if (matches.some(kept => overlaps(match, kept))) continue;
     matches.push(match);
   }
+  return matches;
+}
 
+function detectionFromMatches(matches: AliasMatch[]): GeographyDetection {
   const countries = [...new Set(matches.map(match => match.country))];
-  if (countries.length !== 1) return {};
+  if (countries.length !== 1) return { geography: {}, countries, matches };
 
   const country = countries[0];
   const best = matches
@@ -181,9 +190,36 @@ function detect(material: string): EventGeography {
     })[0];
 
   return {
-    eventCountry: country,
-    eventLocation: best?.label
+    geography: {
+      eventCountry: country,
+      eventLocation: best?.label
+    },
+    countries,
+    matches
   };
+}
+
+function detect(material: string): GeographyDetection {
+  return detectionFromMatches(collectMatches(material));
+}
+
+function hasBroadRegionPrefix(title: string): boolean {
+  return /^\s*(?:west africa|east africa|central africa|southern africa|afrique de l['’]ouest|afrique de l['’]est|afrique centrale|afrique australe|latin america|am[eé]rique latine|middle east|moyen[- ]orient|africa|afrique|asia|asie|europe|global|world|international)\s*[:\-–—]/iu.test(title);
+}
+
+function explicitSummaryMatches(summary: string): AliasMatch[] {
+  const matches = collectMatches(summary);
+  if (!matches.length) return [];
+
+  const haystack = ` ${normalize(summary)} `;
+  const locative = /(?:^|\s)(?:in|at|near|outside|inside|across|throughout|nel|nella|nei|nelle|en|au|aux|dans|pres de|em|no|na|nos|nas|di|bei|im|nahe)\s+(?:(?:the|la|le|les|el|los|las|o|os|as|der|die|das|den|dem)\s+)?$/u;
+  const organizationContext = /(?:based|headquartered|publisher|company|azienda|societe|société|empresa|sede)\s+(?:is\s+)?(?:in|at|en|em|im)\s*$/u;
+
+  return matches.filter(match => {
+    const before = haystack.slice(Math.max(0, match.start - 72), match.start);
+    if (organizationContext.test(before)) return false;
+    return locative.test(before);
+  });
 }
 
 export function extractEventGeography(input: {
@@ -194,15 +230,38 @@ export function extractEventGeography(input: {
   // Structured feed geography wins when present.
   if (input.locationHint?.trim()) {
     const structured = detect(input.locationHint);
-    if (structured.eventCountry) {
+    if (structured.geography.eventCountry) {
       return {
-        eventCountry: structured.eventCountry,
+        eventCountry: structured.geography.eventCountry,
         eventLocation: input.locationHint.trim().slice(0, 240)
       };
     }
   }
 
-  return detect(`${input.title} ${input.summary ?? ""}`);
+  // Headline geography is substantially stronger than incidental geography
+  // mentioned in a summary. If the headline names exactly one country/place,
+  // use it even when the summary mentions other countries.
+  const titleDetection = detect(input.title);
+  if (titleDetection.geography.eventCountry) return titleDetection.geography;
+
+  // If a headline explicitly spans multiple countries, keep geography
+  // unresolved rather than letting a summary collapse it to one country.
+  if (titleDetection.countries.length > 1) return {};
+
+  // Aggregator headlines such as "West Africa: ..." or "Africa: ..." describe
+  // a regional editorial scope, not a single event country. Do not infer one
+  // from an incidental country mention in the summary.
+  if (hasBroadRegionPrefix(input.title)) return {};
+
+  // Summary-only inference is allowed only when the country/place appears in
+  // an explicit locative construction ("in Florida", "en France", "im Berlin").
+  // This intentionally sacrifices recall for event-geography precision.
+  if (input.summary?.trim()) {
+    const explicit = detectionFromMatches(explicitSummaryMatches(input.summary));
+    if (explicit.geography.eventCountry) return explicit.geography;
+  }
+
+  return {};
 }
 
 export function sourceGeography(candidate: ArticleCandidate): string {
