@@ -85,33 +85,37 @@ const scoreSchema = {
   required: ["funny", "wtf", "shareability", "internationalAccessibility", "verifiability", "sensitivity"]
 } as const;
 
-const resultSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    results: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          articleId: { type: "string" },
-          decision: { type: "string", enum: ["KEEP", "MAYBE", "REJECT"] },
-          modes: { type: "array", items: { type: "string", enum: ["WTF", "PREDICT", "STORY"] } },
-          scores: scoreSchema,
-          reason: { type: "string" },
-          evidenceStatus: { type: "string", enum: ["SUPPORTED", "UNCERTAIN", "UNSUPPORTED"] }
-        },
-        required: ["articleId", "decision", "modes", "scores", "reason", "evidenceStatus"]
-      }
-    }
-  },
-  required: ["results"]
-} as const;
-
-function compactCandidate(candidate: ArticleCandidate) {
+function resultSchema(candidateRefs: string[]) {
   return {
-    id: candidate.id,
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      results: {
+        type: "array",
+        minItems: candidateRefs.length,
+        maxItems: candidateRefs.length,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            articleId: { type: "string", enum: candidateRefs },
+            decision: { type: "string", enum: ["KEEP", "MAYBE", "REJECT"] },
+            modes: { type: "array", items: { type: "string", enum: ["WTF", "PREDICT", "STORY"] } },
+            scores: scoreSchema,
+            reason: { type: "string" },
+            evidenceStatus: { type: "string", enum: ["SUPPORTED", "UNCERTAIN", "UNSUPPORTED"] }
+          },
+          required: ["articleId", "decision", "modes", "scores", "reason", "evidenceStatus"]
+        }
+      }
+    },
+    required: ["results"]
+  } as const;
+}
+
+function compactCandidate(candidate: ArticleCandidate, candidateRef: string) {
+  return {
+    id: candidateRef,
     sourceName: candidate.sourceName,
     sourceUrl: candidate.sourceUrl,
     title: candidate.title,
@@ -181,28 +185,47 @@ export class OpenAIScout implements Scout {
 
     if (!this.apiKey) throw new Error("OPENAI_API_KEY is not configured");
     const client = new OpenAI({ apiKey: this.apiKey });
+    const submitted = candidates.map((candidate, index) => ({
+      candidate,
+      ref: `c${index}`
+    }));
+    const refToArticleId = new Map(submitted.map(item => [item.ref, item.candidate.id]));
+    const candidateRefs = submitted.map(item => item.ref);
+
     const response = await client.responses.create({
       model,
       max_output_tokens: SCOUT_MAX_OUTPUT_TOKENS,
       instructions,
-      input: JSON.stringify(candidates.map(compactCandidate)),
+      input: JSON.stringify(submitted.map(item => compactCandidate(item.candidate, item.ref))),
       text: {
-        format: { type: "json_schema", name: "wtf_scout_batch", strict: true, schema: resultSchema }
+        format: {
+          type: "json_schema",
+          name: "wtf_scout_batch",
+          strict: true,
+          schema: resultSchema(candidateRefs)
+        }
       }
     });
 
     const parsed = JSON.parse(response.output_text) as { results: ScoutResult[] };
-    const submittedIds = new Set(candidates.map(candidate => candidate.id));
-    const seenIds = new Set<string>();
-    for (const result of parsed.results) {
-      if (!submittedIds.has(result.articleId)) {
-        throw new Error(`Scout returned article ID that was not submitted: ${result.articleId}`);
+    const seenRefs = new Set<string>();
+    const results: ScoutResult[] = parsed.results.map(result => {
+      const articleId = refToArticleId.get(result.articleId);
+      if (!articleId) {
+        throw new Error(`Scout returned candidate ref that was not submitted: ${result.articleId}`);
       }
-      if (seenIds.has(result.articleId)) {
-        throw new Error(`Scout returned duplicate result for article ${result.articleId}`);
+      if (seenRefs.has(result.articleId)) {
+        throw new Error(`Scout returned duplicate candidate ref: ${result.articleId}`);
       }
-      seenIds.add(result.articleId);
+      seenRefs.add(result.articleId);
+      return { ...result, articleId };
+    });
+
+    if (seenRefs.size !== submitted.length) {
+      const missing = candidateRefs.filter(ref => !seenRefs.has(ref));
+      throw new Error(`Scout omitted submitted candidates: ${missing.join(",")}`);
     }
-    return { results: parsed.results, usage: usageDiagnostics(response, model) };
+
+    return { results, usage: usageDiagnostics(response, model) };
   }
 }
