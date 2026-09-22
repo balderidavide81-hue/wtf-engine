@@ -3,6 +3,7 @@ import type { ArticleCandidate, GameCategory, MediaUsageStatus } from "../domain
 import type { NewsSource } from "./index.js";
 import { canonicalizeHttpUrl } from "../domain/url.js";
 import { extractEventGeography } from "../geo/extract.js";
+import { detectContentLanguage } from "./language.js";
 
 export interface RssSourceConfig {
   name: string;
@@ -248,6 +249,7 @@ export class RssSource implements NewsSource {
         summary,
         locationHint: locationHintFromItem(item)
       });
+      const language = detectContentLanguage(title, summary, this.config.language);
 
       return [{
         id: `${this.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${canonicalLink}`,
@@ -256,7 +258,8 @@ export class RssSource implements NewsSource {
         title,
         summary,
         publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
-        language: this.config.language,
+        language,
+        sourceLanguage: this.config.language,
         country: this.config.country,
         sourceCountry: this.config.country,
         eventCountry: geography.eventCountry,
