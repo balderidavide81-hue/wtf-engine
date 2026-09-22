@@ -3,8 +3,18 @@ import { hasMinimumContent } from "./index.js";
 import { canonicalizeUrl } from "../domain/url.js";
 
 const sensitive = [
-  /\b(killed|murder|dead|death|fatal|suicide|rape|abuse|massacre|terror)\b/i,
-  /\b(morto|morta|uccis[oa]|omicidio|suicidio|stupro|strage|terrorismo)\b/i
+  /\b(killed|murder|dead|death|fatal|suicide|rape|abuse|massacre|terror)\b/iu,
+  /\b(morto|morta|uccis[oa]|omicidio|suicidio|stupro|strage|terrorismo)\b/iu,
+  /\b(tué|tuée|meurtre|mort|décès|suicide|viol|abus|massacre|terrorisme)\b/iu,
+  /\b(muerto|muerta|muerte|asesinad[oa]|homicidio|suicidio|violación|abuso|masacre|terrorismo)\b/iu,
+  /\b(morto|morta|morte|assassinado|assassinada|homicídio|suicídio|estupro|abuso|massacre|terrorismo)\b/iu,
+  /\b(tewas|meninggal|dibunuh|pembunuhan|bunuh diri|pemerkosaan|pelecehan|pembantaian|terorisme)\b/iu,
+  /\b(missing child|missing children|kidnap\w*)\b/iu,
+  /\b(sequestro di persona|bambin\w* scompars\w*|scompars\w* bambin\w*)\b/iu,
+  /\b(enfant\w* disparu\w*|enlèvement)\b/iu,
+  /\b(niñ\w* desaparecid\w*|secuestro)\b/iu,
+  /\b(crianç\w* desaparecid\w*|sequestro)\b/iu,
+  /\b(anak\w* hilang|penculikan)\b/iu
 ];
 
 function titleWords(title: string): Set<string> {
