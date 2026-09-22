@@ -1,5 +1,7 @@
 name: Validate v0.6.13 Francophone Africa wildlife
 
+# Re-run after French semantic parity + fatality filtering
+
 on:
   pull_request:
     branches: [main]
