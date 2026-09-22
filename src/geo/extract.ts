@@ -11,7 +11,7 @@ interface LocationAlias {
   label: string;
 }
 
-const DISPLAY_LOCALES = ["en", "it", "fr", "es", "pt-BR", "id"] as const;
+const DISPLAY_LOCALES = ["en", "it", "fr", "es", "pt-BR", "id", "de"] as const;
 
 const COUNTRY_CODES = (
   "AD AE AF AG AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ " +

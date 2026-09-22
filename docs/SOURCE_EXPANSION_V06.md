@@ -78,6 +78,22 @@ Brazilian feeds. Final live validation returned 20 German candidates with zero f
 entered the 30-item pre-Scout selection without quota forcing. The selected batch represented seven
 languages: English, Italian, French, Spanish, Brazilian Portuguese, Indonesian and German.
 
+v0.6.12 closes part of the Africa discovery gap with AllAfrica Wildlife. The source uses RSS 1.0/RDF,
+so the generic feed adapter now supports RDF items and `dc:date` timestamps. AllAfrica's RSS terms
+explicitly allow website headline modules at no charge with attribution/link-back; WTF Engine uses
+the feed only for discovery metadata and canonical links.
+
+Live validation parsed 24 wildlife headlines, extracted countries such as Namibia and Kenya, removed
+serious/fatal stories before AI, and still produced safe candidates. One story — firefighters rescuing
+crocodiles in Namibia — earned a slot in the 30-item deterministic Scout window without a source bonus.
+The same validation exposed an English sensitivity gap for plural/continuous forms such as `deaths`
+and `killing`; the prefilter now blocks those inflections too.
+
+Japan remains an open source-quality/policy gap. JNTO's English RSS is live, but its current terms
+restrict unauthorized reuse. Government Public Relations Online has permissive commercial/CC-BY-
+compatible text terms, but its RSS endpoints returned HTTP 403 from the GitHub validation environment,
+so neither source was promoted automatically.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection

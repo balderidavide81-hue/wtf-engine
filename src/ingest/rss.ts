@@ -79,7 +79,14 @@ function cleanFeedText(value: unknown, maxChars: number): string | undefined {
 }
 
 function itemsFrom(parsed: Record<string, any>): FeedItem[] {
-  const raw = parsed?.rss?.channel?.item ?? parsed?.feed?.entry ?? [];
+  // RSS 2.0, Atom and RSS 1.0/RDF are all common in publisher feeds.
+  // fast-xml-parser preserves the RDF namespace prefix by default.
+  const raw =
+    parsed?.rss?.channel?.item
+    ?? parsed?.feed?.entry
+    ?? parsed?.["rdf:RDF"]?.item
+    ?? parsed?.RDF?.item
+    ?? [];
   return Array.isArray(raw) ? raw : [raw];
 }
 
@@ -257,7 +264,7 @@ export class RssSource implements NewsSource {
         sourceUrl: canonicalLink,
         title,
         summary,
-        publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated),
+        publishedAt: text(item.pubDate) ?? text(item.published) ?? text(item.updated) ?? text(item["dc:date"]),
         language,
         sourceLanguage: this.config.language,
         country: this.config.country,
