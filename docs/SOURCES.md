@@ -11,16 +11,20 @@ WTF Engine uses direct publisher feeds plus discovery-radar feeds.
 - New Atlas Science
 - New Atlas Technology
 - New Atlas Transport
+- ScienceDaily Strange & Offbeat
+- Smithsonian Smart News
 
-## Active discovery radar
+ScienceDaily and Smithsonian are treated as discovery/link sources: WTF Engine does not republish
+their article bodies and third-party media remains link-only unless separately approved.
 
-GDELT DOC 2.0 ArticleList RSS is queried once per collection cycle through one bounded global radar.
-The returned stories are classified locally into editorial lanes such as animals/local oddities,
-sports, entertainment/culture, work/technology and records/lost-found.
+## Optional discovery radar
 
-This replaces the earlier five-request design after production collection tests returned HTTP 429
-from GDELT. GDELT is not presented to players as the source. The underlying publisher URL remains the
-attribution/verification target.
+GDELT DOC 2.0 remains implemented but is now opt-in only. Production tests returned HTTP 429 first
+with five thematic requests, then again after collapsing to one bounded global request and retrying
+once. Normal collection cycles therefore do not call GDELT.
+
+If explicitly enabled, returned stories are classified locally and the underlying publisher URL,
+not GDELT, remains the attribution/verification target.
 
 ## Ingestion rules
 
@@ -38,9 +42,11 @@ Additional feeds:
 
 `WTF_RSS_SOURCES=Name|URL|language|country,Name 2|URL|language|country`
 
-GDELT kill switch:
+GDELT experimental opt-in:
 
-`WTF_ENABLE_GDELT=0`
+`WTF_ENABLE_GDELT=1`
+
+Unset/default means disabled.
 
 ## Promotion checklist
 
