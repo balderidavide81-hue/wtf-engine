@@ -1,6 +1,4 @@
-name: Validate v0.6.13 Francophone Africa wildlife
-
-# Re-run after French semantic parity + fatality filtering
+name: Validate v0.6.13 French semantic parity
 
 on:
   pull_request:
@@ -9,7 +7,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,70 +17,42 @@ jobs:
       - run: npm run typecheck
       - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
 
-      - name: Validate French Africa feed and selection
+      - name: Validate French playability and sensitivity parity
         shell: bash
         run: |
           node --input-type=module <<'NODE'
-          const { RssSource } = await import('./.tmp-build/src/ingest/rss.js');
-          const { prefilterDetailed } = await import('./.tmp-build/src/filters/pipeline.js');
           const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
-          const { collect } = await import('./.tmp-build/src/ingest/collect.js');
-          const { selectScoutCandidates } = await import('./.tmp-build/src/pipeline/daily.js');
+          const { prefilterDetailed } = await import('./.tmp-build/src/filters/pipeline.js');
 
-          const source = new RssSource({
-            name: 'AllAfrica Faune',
-            url: 'https://fr.allafrica.com/tools/headlines/rdf/wildlife/headlines.rdf',
+          const candidate = {
+            id: 'fr-camel',
+            sourceName: 'Fixture',
+            sourceUrl: 'https://example.com/fr-camel',
+            title: "Tunisie: Un jeune chameau échappe à l'abattage grâce à sa beauté rare",
+            summary: "Le jeune chameau a évité l'abattage après avoir attiré l'attention pour son apparence rare.",
             language: 'fr',
-            country: 'AFRICA',
-            discoverySource: 'AllAfrica Faune',
+            sourceLanguage: 'fr',
+            country: 'TN',
+            sourceCountry: 'TN',
+            eventCountry: 'TN',
             categoryHint: 'animals',
             mediaUsageStatus: 'link-only'
-          });
+          };
 
-          const raw = await source.fetchCandidates();
-          const filtered = prefilterDetailed(raw);
-          console.log('FR_AFRICA_RAW=' + JSON.stringify(raw.map(candidate => ({
-            title: candidate.title,
-            language: candidate.language,
-            eventCountry: candidate.eventCountry,
-            score: preScoutPlayability(candidate).score
-          }))));
+          const score = preScoutPlayability(candidate);
+          console.log('FRENCH_PLAYABILITY=' + JSON.stringify(score));
+          if (score.score < 25) throw new Error('French animal/escape signals are still too weak');
 
-          if (raw.length < 5) throw new Error('AllAfrica Faune returned too few RDF items: ' + raw.length);
-          if (raw.filter(candidate => candidate.language === 'fr').length < Math.ceil(raw.length * 0.7)) {
-            throw new Error('French language detection unexpectedly weak');
+          const fatal = {
+            ...candidate,
+            id: 'fr-fatal',
+            sourceUrl: 'https://example.com/fr-fatal',
+            title: "Ile Maurice: Un feu pour éloigner les moustiques coûte la vie à une septuagénaire",
+            summary: "Un incident domestique coûte la vie à une septuagénaire."
+          };
+          const filtered = prefilterDetailed([fatal]);
+          console.log('FRENCH_SENSITIVITY=' + JSON.stringify(filtered.dropped));
+          if (filtered.candidates.length !== 0 || filtered.dropped.sensitive !== 1) {
+            throw new Error('French fatality phrasing survived the prefilter');
           }
-
-          const report = await collect();
-          const selected = selectScoutCandidates(report.candidates, 30);
-          const kept = report.candidates.filter(candidate => candidate.discoverySource === 'AllAfrica Faune');
-          const selectedFrAfrica = selected.filter(candidate => candidate.discoverySource === 'AllAfrica Faune');
-
-          console.log('FR_AFRICA_GATE=' + JSON.stringify({
-            raw: raw.length,
-            standaloneKept: filtered.candidates.length,
-            standaloneDropped: filtered.dropped,
-            fullCollector: {
-              sourceCount: report.sourceCount,
-              fetched: report.fetched,
-              kept: report.kept,
-              errors: report.errors,
-              dropped: report.dropped
-            },
-            kept: kept.map(candidate => ({
-              title: candidate.title,
-              language: candidate.language,
-              eventCountry: candidate.eventCountry,
-              score: preScoutPlayability(candidate).score
-            })),
-            selected: selectedFrAfrica.map(candidate => ({
-              title: candidate.title,
-              language: candidate.language,
-              eventCountry: candidate.eventCountry,
-              score: preScoutPlayability(candidate).score
-            }))
-          }));
-
-          if (kept.length < 1) throw new Error('AllAfrica Faune produced no safe candidates');
-          if (selectedFrAfrica.length < 1) throw new Error('AllAfrica Faune did not earn a pre-Scout slot');
           NODE
