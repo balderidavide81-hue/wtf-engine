@@ -1,6 +1,6 @@
 name: Validate v0.6.11 regional world sources
 
-# Final gate after regional quality pruning
+# Final gate after replacing flaky Clarín with focused Motor1 Argentina
 
 on:
   pull_request:
@@ -28,7 +28,7 @@ jobs:
           const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
 
           const expected = [
-            'Clarin Autos'
+            'Motor1 Argentina Curiosidad'
           ];
 
           const report = await collect();
