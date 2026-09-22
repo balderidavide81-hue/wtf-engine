@@ -3,7 +3,8 @@
   "git": {
     "deploymentEnabled": {
       "**": false,
-      "main": true
+      "main": true,
+      "probe-0.6.7-global-scout-live": true
     }
   }
 }
