@@ -56,13 +56,17 @@ jobs:
             languages: countBy(c => c.language),
             sourceCountries: countBy(c => c.sourceCountry ?? c.country),
             eventCountries: countBy(c => c.eventCountry),
+            qualityCount: rows.filter(r => r.score >= 10).length,
             positiveCount: rows.filter(r => r.positive.length > 0).length,
             negativeOnlyCount: rows.filter(r => r.positive.length === 0 && r.negative.length > 0).length,
             rows
           }));
 
           if (selected.length !== 30) throw new Error('expected 30 selected candidates');
-          if (rows.filter(r => r.positive.length > 0).length < 15) {
-            throw new Error('fewer than half the paid Scout candidates have positive playability signals');
+          if (rows.filter(r => r.score >= 10).length < 20) {
+            throw new Error('fewer than 20 paid Scout candidates meet the deterministic quality threshold');
+          }
+          if (rows.some(r => r.positive.length === 0 && r.negative.length > 0)) {
+            throw new Error('paid Scout batch contains a negative-only candidate');
           }
           NODE
