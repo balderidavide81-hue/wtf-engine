@@ -14,34 +14,29 @@ alter table game_cards add column if not exists interaction_type text not null d
 alter table game_cards add column if not exists category text not null default 'other';
 alter table game_cards add column if not exists published_at timestamptz;
 
-do $$
-begin
-  if not exists (select 1 from pg_constraint where conname='articles_image_usage_status_ck') then
-    alter table articles add constraint articles_image_usage_status_ck
-      check (image_usage_status in ('unreviewed','link-only','remote-display','cache-allowed','owned'));
-  end if;
+-- Drop/re-add named checks so the migration remains idempotent and can be
+-- executed by migration runners that split SQL on statement boundaries.
+alter table articles drop constraint if exists articles_image_usage_status_ck;
+alter table articles add constraint articles_image_usage_status_ck
+  check (image_usage_status in ('unreviewed','link-only','remote-display','cache-allowed','owned'));
 
-  if not exists (select 1 from pg_constraint where conname='game_cards_interaction_type_ck') then
-    alter table game_cards add constraint game_cards_interaction_type_ck
-      check (interaction_type in ('MULTIPLE_CHOICE','TRUE_FALSE','PREDICT'));
-  end if;
+alter table game_cards drop constraint if exists game_cards_interaction_type_ck;
+alter table game_cards add constraint game_cards_interaction_type_ck
+  check (interaction_type in ('MULTIPLE_CHOICE','TRUE_FALSE','PREDICT'));
 
-  if not exists (select 1 from pg_constraint where conname='game_cards_category_ck') then
-    alter table game_cards add constraint game_cards_category_ck
-      check (category in (
-        'animals','records','sports','film-tv','music','culture','work','science','space',
-        'technology','transport','food','travel','internet','history-archaeology','people','other'
-      ));
-  end if;
+alter table game_cards drop constraint if exists game_cards_category_ck;
+alter table game_cards add constraint game_cards_category_ck
+  check (category in (
+    'animals','records','sports','film-tv','music','culture','work','science','space',
+    'technology','transport','food','travel','internet','history-archaeology','people','other'
+  ));
 
-  if not exists (select 1 from pg_constraint where conname='game_cards_predict_interaction_ck') then
-    alter table game_cards add constraint game_cards_predict_interaction_ck
-      check (
-        (mode='PREDICT' and interaction_type='PREDICT')
-        or (mode<>'PREDICT' and interaction_type<>'PREDICT')
-      );
-  end if;
-end $$;
+alter table game_cards drop constraint if exists game_cards_predict_interaction_ck;
+alter table game_cards add constraint game_cards_predict_interaction_ck
+  check (
+    (mode='PREDICT' and interaction_type='PREDICT')
+    or (mode<>'PREDICT' and interaction_type<>'PREDICT')
+  );
 
 create index if not exists articles_title_trgm_idx
   on articles using gin (lower(title) gin_trgm_ops);
