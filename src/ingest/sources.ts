@@ -88,16 +88,13 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
   // v0.6.11 regional expansion: official/public RSS endpoints from local
   // publishers. These are discovery/link sources only; no article-body reuse.
   {
-    name: "Clarin Autos",
-    url: "https://www.clarin.com/rss/autos/",
+    name: "Motor1 Argentina Curiosidad",
+    url: "https://ar.motor1.com/rss/category/curiosidad/",
     language: "es",
     country: "AR",
-    discoverySource: "Clarin Autos",
+    discoverySource: "Motor1 Argentina Curiosidad",
     categoryHint: "transport",
-    mediaUsageStatus: "link-only",
-    timeoutMs: 20_000,
-    retryCount: 1,
-    retryDelayMs: 1_500
+    mediaUsageStatus: "link-only"
   },
 
   // The Conversation operates local editions around the world and publishes
