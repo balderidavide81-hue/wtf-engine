@@ -16,42 +16,42 @@ const POSITIVE_RULES: SignalRule[] = [
   {
     label: "record",
     points: 24,
-    pattern: /\b(world record|guinness|record[- ]breaking|record attempt|record mondiale|record du monde|récord mundial|recorde mundial|rekor dunia|primato|weltrekord|rekord)\b/iu
+    pattern: /\b(world record|guinness|record[- ]breaking|record attempt|record mondiale|record du monde|récord mundial|recorde mundial|rekor dunia|primato|weltrekord|rekord|dünya rekoru|dunya rekoru)\b/iu
   },
   {
     label: "escaped-or-loose",
     points: 20,
-    pattern: /\b(escaped?|loose|wandering|runaway|fug[ag]|scappat|échapp|en fuite|escap|suelto|solto|kabur|berkeliaran|entkomm|ausgebroch|streunend|freilaufend)\w*/iu
+    pattern: /\b(escaped?|loose|wandering|runaway|fug[ag]|scappat|échapp|en fuite|escap|suelto|solto|kabur|berkeliaran|entkomm|ausgebroch|streunend|freilaufend|kaçtı|kacti|kaçan|kacan|firar)\w*/iu
   },
   {
     label: "rescue-or-reunion",
     points: 14,
-    pattern: /\b(rescu|saved|reunited|ritrovat|salvat|sauvé|retrouvé|rescat|reencontr|resgat|reencontrad|diselamatkan|ditemukan kembali|gerettet|wiedergefunden)\w*/iu
+    pattern: /\b(rescu|saved|reunited|ritrovat|salvat|sauvé|retrouvé|rescat|reencontr|resgat|reencontrad|diselamatkan|ditemukan kembali|gerettet|wiedergefunden|kurtar|kurtarıld|kurtarild)\w*/iu
   },
   {
     label: "lottery-or-prize",
     points: 15,
-    pattern: /\b(lottery|lotto|jackpot|scratch[- ]off|lotteria|gratta e vinci|loterie|lotería|loteria|undian|jackpot)\b/iu
+    pattern: /\b(lottery|lotto|jackpot|scratch[- ]off|lotteria|gratta e vinci|loterie|lotería|loteria|undian|jackpot|piyango|ikramiye)\b/iu
   },
   {
     label: "auction-or-found-object",
     points: 14,
-    pattern: /\b(auction|estate sale|sold for|found after|lost for|hidden for|asta|vendut[oa]|ritrovat|enchères|vendu|subasta|vendid[oa]|leilão|vendido|lelang|ditemukan|auktion|versteiger\w*|gefunden|wiederentdeckt)\b/iu
+    pattern: /\b(auction|estate sale|sold for|found after|lost for|hidden for|asta|vendut[oa]|ritrovat|enchères|vendu|subasta|vendid[oa]|leilão|vendido|lelang|ditemukan|auktion|versteiger\w*|gefunden|wiederentdeckt|müzayede|muzayede|satıldı|satildi|bulundu)\b/iu
   },
   {
     label: "explicit-weirdness",
     points: 18,
-    pattern: /\b(unusual|strange|bizarre|odd|weird|unexpected|insolit[oa]|bizzarr[oa]|curios[oa]|étrange|insolite|bizarre|extrañ[oa]|insólit[oa]|inusitad[oa]|estranh[oa]|aneh|unik|tak biasa|bizarr|seltsam|ungewöhnlich|ungewohnlich|verrückt|verruckt|kurios|irre)\b/iu
+    pattern: /\b(unusual|strange|bizarre|odd|weird|unexpected|insolit[oa]|bizzarr[oa]|curios[oa]|étrange|insolite|bizarre|extrañ[oa]|insólit[oa]|inusitad[oa]|estranh[oa]|aneh|unik|tak biasa|bizarr|seltsam|ungewöhnlich|ungewohnlich|verrückt|verruckt|kurios|irre|ilginç|ilginc|garip|tuhaf|acayip|şaşırtıcı|sasirtici)\b/iu
   },
   {
     label: "superlative-or-first",
     points: 10,
-    pattern: /\b(first[- ]ever|largest|smallest|longest|shortest|oldest|youngest|rare appearance|prima volta|più grande|più piccolo|più lungo|apparizione rara|première fois|plus grand|plus petit|apparition rare|primera vez|más grande|más pequeño|aparición rara|primeira vez|maior|menor|aparição rara|pertama kali|terbesar|terkecil|kemunculan langka|erstmals|größte|grosste|kleinste|längste|langste|älteste|alteste|jüngste|jungste)\b/iu
+    pattern: /\b(first[- ]ever|largest|smallest|longest|shortest|oldest|youngest|rare appearance|prima volta|più grande|più piccolo|più lungo|apparizione rara|première fois|plus grand|plus petit|apparition rare|primera vez|más grande|más pequeño|aparición rara|primeira vez|maior|menor|aparição rara|pertama kali|terbesar|terkecil|kemunculan langka|erstmals|größte|grosste|kleinste|längste|langste|älteste|alteste|jüngste|jungste|ilk kez|en büyük|en buyuk|en küçük|en kucuk|en uzun|en yaşlı|en yasli)\b/iu
   },
   {
     label: "animal-event",
     points: 8,
-    pattern: /\b(deer|emu|horse|chimp|alligator|fox|snake|shark|turtle|dog|cat|bird|rhino|hippo|elephant|lion|leopard|cheetah|giraffe|zebra|buffalo|crocodile|pangolin|hyena|baboon|gorilla|animale|cervo|cavallo|scimmia|volpe|serpente|requin|cheval|chien|chat|tortue|caballo|perro|gato|tiburón|tartaruga|cavalo|cachorro|gato|hiu|kura-kura|hewan|tier|hund|katze|schlange|hai|pferd|vogel)\b/iu
+    pattern: /\b(deer|emu|horse|chimp|alligator|fox|snake|shark|turtle|dog|cat|bird|rhino|hippo|elephant|lion|leopard|cheetah|giraffe|zebra|buffalo|crocodile|pangolin|hyena|baboon|gorilla|animale|cervo|cavallo|scimmia|volpe|serpente|requin|cheval|chien|chat|tortue|caballo|perro|gato|tiburón|tartaruga|cavalo|cachorro|gato|hiu|kura-kura|hewan|tier|hund|katze|schlange|hai|pferd|vogel|köpek|kopek|kedi|yılan|yilan|kuş|kus|fil|aslan|ayı|ayi|kaplan|timsah)\b/iu
   }
 ];
 
@@ -59,22 +59,22 @@ const NEGATIVE_RULES: SignalRule[] = [
   {
     label: "serious-health",
     points: -28,
-    pattern: /\b(cancer|tumou?r|disease|disorder|ocd|trauma|infection|infected|medical|health|menstruat|periods|cancro|tumore|malattia|disturbo|salute|mestru|cancer|maladie|trouble|santé|menstru|cáncer|enfermedad|trastorno|salud|menstru|câncer|doença|transtorno|saúde|menstrua|kanker|penyakit|gangguan|kesehatan|menstruasi|krebs|krankheit|gesundheit|infektion)\b/iu
+    pattern: /\b(cancer|tumou?r|disease|disorder|ocd|trauma|infection|infected|medical|health|menstruat|periods|cancro|tumore|malattia|disturbo|salute|mestru|cancer|maladie|trouble|santé|menstru|cáncer|enfermedad|trastorno|salud|menstru|câncer|doença|transtorno|saúde|menstrua|kanker|penyakit|gangguan|kesehatan|menstruasi|krebs|krankheit|gesundheit|infektion|kanser|hastalık|hastalik|sağlık|saglik|enfeksiyon)\b/iu
   },
   {
     label: "crime-or-court",
     points: -30,
-    pattern: /\b(murder|kidnap|prison|jail|fraud|prosecutor|indict|arrested|molotov|court case|carcere|sequestro|truffa|procura|arrestat|omicid|tribunale|enlèvement|prison|fraude|procureur|arrêté|secuestro|prisión|fraude|fiscalía|arrestad|prisão|fraude|promotor|preso|penculikan|penjara|penipuan|jaksa|ditangkap|mord|entführung|entfuhrung|gefängnis|gefangnis|betrug|staatsanwalt|verhaftet|gericht)\b/iu
+    pattern: /\b(murder|kidnap|prison|jail|fraud|prosecutor|indict|arrested|molotov|court case|carcere|sequestro|truffa|procura|arrestat|omicid|tribunale|enlèvement|prison|fraude|procureur|arrêté|secuestro|prisión|fraude|fiscalía|arrestad|prisão|fraude|promotor|preso|penculikan|penjara|penipuan|jaksa|ditangkap|mord|entführung|entfuhrung|gefängnis|gefangnis|betrug|staatsanwalt|verhaftet|gericht|cinayet|kaçırma|kacirma|hapishane|dolandırıcılık|dolandiricilik|tutuklan\w*|mahkeme)\b/iu
   },
   {
     label: "policy-politics",
     points: -24,
-    pattern: /\b(regulation\w*|policy|government\w*|parliament\w*|election\w*|referendum\w*|minister\w*|politic\w*|regolament\w*|governo|parlamento|elezion\w*|referendum\w*|ministr\w*|réglement\w*|gouvernement\w*|parlement\w*|élection\w*|référendum\w*|ministr\w*|regulación\w*|gobierno|parlamento|elecci\w*|referéndum\w*|ministr\w*|regulação\w*|governo|parlamento|eleiç\w*|referendo\w*|ministr\w*|regulasi|pemerintah|parlemen|pemilu|referendum|menteri|regierung|parlament|wahl\w*|minister\w*|politik\w*)\b/iu
+    pattern: /\b(regulation\w*|policy|government\w*|parliament\w*|election\w*|referendum\w*|minister\w*|politic\w*|regolament\w*|governo|parlamento|elezion\w*|referendum\w*|ministr\w*|réglement\w*|gouvernement\w*|parlement\w*|élection\w*|référendum\w*|ministr\w*|regulación\w*|gobierno|parlamento|elecci\w*|referéndum\w*|ministr\w*|regulação\w*|governo|parlamento|eleiç\w*|referendo\w*|ministr\w*|regulasi|pemerintah|parlemen|pemilu|referendum|menteri|regierung|parlament|wahl\w*|minister\w*|politik\w*|hükümet|hukumet|parlamento|seçim\w*|secim\w*|bakan\w*|siyaset\w*)\b/iu
   },
   {
     label: "generic-explainer",
     points: -10,
-    pattern: /^(what|how|why|are |can |could |should |cosa |come |perché|perche|che cosa|pourquoi|comment|qu['’]est|qué |que |cómo|como |por qué|por que|o que|como |por que|apa |bagaimana|mengapa|warum|wie |was |kann |soll )\b/iu
+    pattern: /^(what|how|why|are |can |could |should |cosa |come |perché|perche|che cosa|pourquoi|comment|qu['’]est|qué |que |cómo|como |por qué|por que|o que|como |por que|apa |bagaimana|mengapa|warum|wie |was |kann |soll |neden|nasıl|nasil|nedir|ne )\b/iu
   },
   {
     label: "debunked-or-non-event",
@@ -87,7 +87,7 @@ const SOURCE_BONUS: Array<[RegExp, number, string]> = [
   [/^UPI Odd News$/i, 28, "quirky-source"],
   [/^ScienceDaily Strange & Offbeat$/i, 24, "quirky-source"],
   [/^Rai Televideo Culture$/i, 6, "culture-source"],
-  [/^(InsideEVs Italia Curiosita|InsideEVs Brasil Curiosidades|Motor1 France Insolite|Motor1 Espana Curiosidades|Motor1 Germany Bizarr)$/i, 8, "focused-curiosity-source"],
+  [/^(InsideEVs Italia Curiosita|InsideEVs Brasil Curiosidades|Motor1 France Insolite|Motor1 Espana Curiosidades|Motor1 Germany Bizarr|Motor1 Turkey Ilginc)$/i, 8, "focused-curiosity-source"],
   [/^Phys\.org Plants & Animals$/i, 5, "animal-source"],
   [/^Phys\.org Archaeology$/i, 4, "archaeology-source"]
 ];
