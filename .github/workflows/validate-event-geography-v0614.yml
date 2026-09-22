@@ -1,5 +1,7 @@
 name: Validate v0.6.14 event geography confidence
 
+# Re-run after explicit locative boundary fix
+
 on:
   pull_request:
     branches: [main]
