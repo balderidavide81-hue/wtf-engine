@@ -1,4 +1,4 @@
-name: Export current global Scout batch
+name: Export current global Scout batch v2
 
 on:
   pull_request:
