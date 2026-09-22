@@ -94,6 +94,13 @@ restrict unauthorized reuse. Government Public Relations Online has permissive c
 compatible text terms, but its RSS endpoints returned HTTP 403 from the GitHub validation environment,
 so neither source was promoted automatically.
 
+v0.6.13 tested AllAfrica's French wildlife feed under the same RSS terms as the English source. The
+feed was healthy (16 current items, 15 initially safe), but none earned a place in the 30-item pre-Scout
+window, so it was deliberately not promoted. The test still exposed useful multilingual parity gaps:
+French animal names such as chameau, crocodile, éléphant, gorille, baleine, okapi and scorpion now
+contribute to deterministic playability, while fatality phrasing such as `coûte la vie` is filtered
+before AI. These changes benefit all existing French sources without adding low-yield collector volume.
+
 GDELT DOC 2.0 is no longer enabled by default. Live production tests returned HTTP 429 with five
 thematic requests and again with one reduced global request plus one bounded retry. The adapter stays
 available for controlled experiments with `WTF_ENABLE_GDELT=1`, but normal production collection
