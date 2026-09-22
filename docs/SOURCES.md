@@ -59,18 +59,24 @@ guaranteeing them a paid Scout slot.
 v0.6.11 promotes one additional focused regional source after source-policy, transport-reliability
 and live quality gates:
 
-- Motor1 Argentina Curiosidad — Spanish / Argentina / official category RSS.
+- Motor1 Germany Bizarr — German / Germany / official category RSS.
 
-Motor1 Argentina exposes category RSS feeds as a free service to its users. The Argentina
-`Curiosidad` feed receives the same modest focused-curiosity prior as the already validated Motor1 /
-InsideEVs feeds for France, Spain, Italy and Brazil; it still has to earn a Scout slot through normal
-playability and diversity caps.
+Motor1 Germany explicitly provides its RSS feeds as a free service and exposes a dedicated `Bizarr`
+category. The feed receives the same modest focused-curiosity prior as the already validated Motor1 /
+InsideEVs feeds for France, Spain, Italy and Brazil. German is detected as a first-class source-content
+language and receives matching deterministic pre-Scout signals rather than relying on the feed label.
+
+Final live validation returned 20 German candidates with zero source errors. One German story entered
+the 30-item deterministic Scout selection without a forced language quota, expanding live source
+coverage to seven languages: English, Italian, French, Spanish, Brazilian Portuguese, Indonesian and
+German.
 
 Several technically healthy regional feeds were tested but deliberately not promoted because their
 current top items had weak deterministic WTF playability: TimesLIVE Lifestyle, TimesLIVE Motoring,
 The Standard Magazines, The Standard Entertainment and Global Voices Japan. Clarín Autos briefly
 produced a viable Argentina candidate, but repeated GitHub-runner validation exposed intermittent
-timeouts even with a bounded retry, so it was replaced rather than promoted.
+timeouts even with a bounded retry. Motor1 Argentina's official RSS directory lists a `Curiosidad`
+feed, but the live category endpoint returned HTTP 404 during validation, so Argentina was not promoted.
 
 The Tokyo was also evaluated separately. Its programmatic feeds are free and its site-authored
 excerpts/metadata are CC BY 4.0, but the current 50-item Atom feed produced no positive deterministic
