@@ -30,6 +30,22 @@ jobs:
             ['Korea.net Sci Tech', 'https://www.korea.net/koreanet/rss/news/5', 'technology']
           ];
 
+          async function traceRedirects(name, startUrl) {
+            let url = startUrl;
+            for (let hop = 0; hop < 8; hop += 1) {
+              const res = await fetch(url, {
+                headers: { 'user-agent': 'wtf-engine-source-research/0.6.13' },
+                redirect: 'manual'
+              });
+              const location = res.headers.get('location');
+              console.log('KOREA_REDIRECT=' + JSON.stringify({ name, hop, url, status: res.status, location }));
+              if (res.status < 300 || res.status >= 400 || !location) return;
+              url = new URL(location, url).toString();
+            }
+          }
+
+          for (const [name, url] of feeds) await traceRedirects(name, url);
+
           for (const [name, url, categoryHint] of feeds) {
             try {
               const source = new RssSource({
