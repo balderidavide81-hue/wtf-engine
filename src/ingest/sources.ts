@@ -99,18 +99,6 @@ const DIRECT_SOURCES: RssSourceConfig[] = [
     retryCount: 1,
     retryDelayMs: 1_500
   },
-  {
-    name: "The Tokyo Japan Discovery",
-    url: "https://thetokyo.org/feed.atom",
-    language: "en",
-    country: "JP",
-    discoverySource: "The Tokyo Japan Discovery",
-    categoryHint: "culture",
-    mediaUsageStatus: "link-only",
-    timeoutMs: 20_000,
-    retryCount: 1,
-    retryDelayMs: 1_500
-  },
 
   // The Conversation operates local editions around the world and publishes
   // under Creative Commons. We still ingest only discovery metadata and keep
