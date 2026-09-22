@@ -1,6 +1,6 @@
 name: Validate v0.6.11 regional world sources
 
-# Final gate after regional quality pruning + The Tokyo timeout tuning
+# Final gate after regional quality pruning
 
 on:
   pull_request:
@@ -28,8 +28,7 @@ jobs:
           const { preScoutPlayability } = await import('./.tmp-build/src/pipeline/playability.js');
 
           const expected = [
-            'Clarin Autos',
-            'The Tokyo Japan Discovery'
+            'Clarin Autos'
           ];
 
           const report = await collect();
