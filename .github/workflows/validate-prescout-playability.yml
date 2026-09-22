@@ -52,6 +52,7 @@ jobs:
           console.log('PRESCOUT_BATCH=' + JSON.stringify({
             fetched: report.fetched,
             kept: report.kept,
+            sensitiveDropped: report.dropped.sensitive,
             selected: selected.length,
             languages: countBy(c => c.language),
             sourceCountries: countBy(c => c.sourceCountry ?? c.country),
