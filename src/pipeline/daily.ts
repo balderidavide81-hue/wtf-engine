@@ -62,15 +62,7 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     add(candidate);
   }
 
-  // Pass 3: if quality exists but is concentrated in a few feeds, prefer paying
-  // Scout for that quality rather than filling the reserved block with generic news.
-  for (const candidate of sorted) {
-    if (selected.length >= qualityTarget) break;
-    if (used.has(candidate.id) || !isQualityCandidate(candidate)) continue;
-    add(candidate);
-  }
-
-  // Pass 4: use the exploration budget to cover source languages that the
+  // Pass 3: use the exploration budget to cover source languages that the
   // quality block did not represent, when live candidates are available.
   const availableLanguages = new Set(
     sorted.map(candidate => candidate.language?.trim()).filter((value): value is string => Boolean(value))
@@ -87,7 +79,7 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     if (candidate) add(candidate);
   }
 
-  // Pass 5: spend the remaining exploration slots while retaining publisher/geography breadth.
+  // Pass 4: spend the remaining exploration slots while retaining publisher/geography breadth.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
@@ -97,7 +89,7 @@ export function selectScoutCandidates(candidates: ArticleCandidate[], limit: num
     add(candidate);
   }
 
-  // Pass 6: never leave paid capacity unused when the discovery pool is smaller/imbalanced.
+  // Pass 5: never leave paid capacity unused when the discovery pool is smaller/imbalanced.
   for (const candidate of sorted) {
     if (selected.length >= limit) break;
     if (used.has(candidate.id)) continue;
