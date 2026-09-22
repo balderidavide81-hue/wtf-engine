@@ -48,7 +48,7 @@ function decodeHtmlEntities(value: string): string {
   const named: Record<string, string> = {
     amp: "&",
     apos: "'",
-    quot: """,
+    quot: '"',
     lt: "<",
     gt: ">",
     nbsp: " "
