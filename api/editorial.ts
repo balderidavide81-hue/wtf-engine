@@ -3,6 +3,7 @@ import { NeonContentStore } from "../src/store/neon-content-store.js";
 import { editionDateFromQuery } from "../src/time/edition-date.js";
 import { isEditorialAuthorized } from "../src/auth/editorial.js";
 import { DAILY_GENERATION_LEASE_KEY, DAILY_GENERATION_LEASE_TTL_SECONDS } from "../src/store/lease-constants.js";
+import { validateCardDraft } from "../src/ai/editor.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
@@ -22,6 +23,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (req.method === "POST") {
       const action = req.body?.action;
+      if (action === "edit_card") {
+        if (typeof req.body?.cardId !== "string") {
+          return res.status(400).json({ error: "card_id_required" });
+        }
+        const edition = await contentStore.getEditorialEdition(date);
+        if (!edition) return res.status(404).json({ error: "edition_not_found" });
+        if (edition.status !== "draft") {
+          return res.status(409).json({ error: "edition_not_draft" });
+        }
+        const current = edition.cards.find(card => card.id === req.body.cardId);
+        if (!current) return res.status(404).json({ error: "card_not_found" });
+
+        const hook = typeof req.body?.hook === "string" ? req.body.hook.trim() : "";
+        const question = typeof req.body?.question === "string" ? req.body.question.trim() : "";
+        const options = Array.isArray(req.body?.options) ? req.body.options : null;
+        const reveal = typeof req.body?.reveal === "string" ? req.body.reveal.trim() : "";
+        const resolutionRule = req.body?.resolutionRule === null
+          ? null
+          : typeof req.body?.resolutionRule === "string"
+            ? req.body.resolutionRule.trim() || null
+            : undefined;
+        const correctOptionIndex = req.body?.correctOptionIndex;
+
+        if (!hook || !question || !reveal || !options || resolutionRule === undefined) {
+          return res.status(400).json({ error: "complete_card_edit_required" });
+        }
+        if (!options.every((option: unknown) => typeof option === "string")) {
+          return res.status(400).json({ error: "invalid_card_options" });
+        }
+        if (correctOptionIndex !== null && !Number.isInteger(correctOptionIndex)) {
+          return res.status(400).json({ error: "invalid_correct_option_index" });
+        }
+
+        const next = {
+          articleId: current.articleId,
+          mode: current.mode,
+          interactionType: current.interactionType,
+          category: current.category,
+          hook,
+          question,
+          options: options.map((option: string) => option.trim()),
+          correctOptionIndex,
+          reveal,
+          resolutionRule
+        };
+        validateCardDraft(next);
+        await contentStore.updateDraftCard(date, current.id, {
+          hook: next.hook,
+          question: next.question,
+          options: next.options,
+          correctOptionIndex: next.correctOptionIndex,
+          reveal: next.reveal,
+          resolutionRule: next.resolutionRule
+        });
+        return res.status(200).json({ ok: true });
+      }
+
       if (action === "review_card" || action === "reject_card") {
         if (typeof req.body?.cardId !== "string") return res.status(400).json({ error: "card_id_required" });
         await contentStore.setCardLifecycle(date, req.body.cardId, action === "review_card" ? "reviewed" : "rejected");
