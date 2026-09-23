@@ -1,0 +1,67 @@
+name: Smoke public gameplay endpoints
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify published edition and answer flow
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          DAILY_STATUS=$(curl -sS -o daily.json -w '%{http_code}'             'https://wtf-engine.vercel.app/api/gameplay-daily?date=2026-09-23')
+          test "$DAILY_STATUS" = "200"
+
+          ANSWER_STATUS=$(curl -sS -o answer.json -w '%{http_code}'             -X POST             -H 'content-type: application/json'             --data '{"cardId":"4d040e48-d8a2-4919-abfe-b80599ce0d19","selectedOptionIndex":0}'             'https://wtf-engine.vercel.app/api/gameplay-answer')
+          test "$ANSWER_STATUS" = "200"
+
+          PREDICT_STATUS=$(curl -sS -o predict.json -w '%{http_code}'             -X POST             -H 'content-type: application/json'             --data '{"cardId":"2a356c25-1c70-4215-a222-f8cd5d08dea2","selectedOptionIndex":0}'             'https://wtf-engine.vercel.app/api/gameplay-answer')
+          test "$PREDICT_STATUS" = "404"
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const daily = JSON.parse(fs.readFileSync('daily.json', 'utf8'));
+          if (daily.editionDate !== '2026-09-23' || daily.cards?.length !== 15) {
+            throw new Error('published edition shape mismatch');
+          }
+          const leaked = daily.cards.filter(card =>
+            card.mode !== 'PREDICT' && (card.resolvedOptionIndex !== null || card.reveal !== null)
+          );
+          if (leaked.length) throw new Error('published cards leaked answers before submission');
+
+          const answer = JSON.parse(fs.readFileSync('answer.json', 'utf8'));
+          if (answer.cardId !== '4d040e48-d8a2-4919-abfe-b80599ce0d19') {
+            throw new Error('answer returned wrong card id');
+          }
+          if (answer.selectedOptionIndex !== 0 || typeof answer.correct !== 'boolean') {
+            throw new Error('answer result missing submitted choice/correctness');
+          }
+          if (!Number.isInteger(answer.correctOptionIndex) || typeof answer.reveal !== 'string' || !answer.reveal.trim()) {
+            throw new Error('answer result did not reveal resolved answer after submission');
+          }
+
+          const predict = JSON.parse(fs.readFileSync('predict.json', 'utf8'));
+          if (predict.error !== 'answerable_published_card_not_found') {
+            throw new Error('PREDICT card was not rejected by gameplay-answer');
+          }
+
+          console.log('PUBLIC_GAMEPLAY_SMOKE=' + JSON.stringify({
+            editionCards: daily.cards.length,
+            selectedOptionIndex: answer.selectedOptionIndex,
+            correct: answer.correct,
+            correctOptionIndex: answer.correctOptionIndex,
+            predictRejected: true,
+            status: 'PASS'
+          }));
+          NODE
