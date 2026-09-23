@@ -1,6 +1,6 @@
 # WTF Engine v0.5 — Content Store / Daily Edition
 
-Status: production persistence active. The first end-to-end persisted daily draft was validated on 2026-09-23; publication remains an explicit editorial action.
+Status: production persistence and editorial publication are active. The first end-to-end edition was generated, reviewed, published and exercised through the public gameplay answer flow on 2026-09-23.
 
 ## Goal
 
@@ -81,8 +81,13 @@ is active before paid generation.
 
 The resulting 15-card edition was then audited, three copy defects were corrected through the
 draft-only edit path, all 15 cards were marked reviewed, and the edition moved to `reviewed`.
-A subsequent public gameplay request still returned `published_edition_not_found`, proving the
-reviewed state remains non-public.
+A public gameplay request still returned `published_edition_not_found` while the edition was reviewed,
+proving that state remains non-public.
+
+The edition was subsequently published explicitly. Fourteen WTF cards moved to `published` and the
+single PREDICT card moved to `open`. Public gameplay returned all 15 cards without pre-submit answer
+leakage, and the post-submit answer endpoint returned correctness/reveal only after a choice. The open
+PREDICT card remained ineligible for the normal answer endpoint.
 
 ## Repeated-run safety
 
