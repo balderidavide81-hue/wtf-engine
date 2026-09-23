@@ -50,6 +50,15 @@ export interface EditorialEditionRecord extends DailyEditionRecord {
   cards: EditorialCardRecord[];
 }
 
+export interface DraftCardEditInput {
+  hook: string;
+  question: string;
+  options: string[];
+  correctOptionIndex: number | null;
+  reveal: string;
+  resolutionRule: string | null;
+}
+
 export interface PublicGameCardRecord {
   id: string;
   mode: "WTF" | "PREDICT" | "STORY";
