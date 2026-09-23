@@ -5,7 +5,7 @@ import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
 import { EDITOR_PROMPT_VERSION } from "../ai/editor.js";
 import type { ContentStore } from "./content-store.js";
-import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput } from "./types.js";
+import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput, DraftCardEditInput } from "./types.js";
 
 function requireDatabaseUrl(): string {
   const value = process.env.DATABASE_URL;
@@ -335,6 +335,66 @@ export class NeonContentStore implements ContentStore {
         };
       })
     };
+  }
+
+  async updateDraftCard(
+    editionDate: string,
+    cardId: string,
+    input: DraftCardEditInput
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const edition = await client.query(
+        "select id, status from daily_editions where edition_date=$1 for update",
+        [editionDate]
+      );
+      if (edition.rowCount === 0) throw new Error(`Edition ${editionDate} not found`);
+      if (edition.rows[0].status !== "draft") {
+        throw new Error(`Edition ${editionDate} is ${edition.rows[0].status} and card editing is frozen`);
+      }
+      const editionId = String(edition.rows[0].id);
+      const result = await client.query(
+        `update game_cards gc
+            set hook=$3,
+                question=$4,
+                options=$5::jsonb,
+                correct_option_index=$6,
+                reveal=$7,
+                resolution_rule=$8,
+                updated_at=now()
+          where gc.id=$2
+            and gc.lifecycle_status='draft'
+            and exists (
+              select 1 from daily_edition_cards dec
+               where dec.card_id=gc.id and dec.edition_id=$1
+            )
+            and not exists (
+              select 1
+                from daily_edition_cards dec
+                join daily_editions de on de.id=dec.edition_id
+               where dec.card_id=gc.id and de.status <> 'draft'
+            )
+          returning id`,
+        [
+          editionId,
+          cardId,
+          input.hook,
+          input.question,
+          JSON.stringify(input.options),
+          input.correctOptionIndex,
+          input.reveal,
+          input.resolutionRule
+        ]
+      );
+      if (result.rowCount === 0) throw new Error(`Card ${cardId} cannot be edited`);
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async setCardLifecycle(
