@@ -1,0 +1,82 @@
+name: Validate v0.6.20 draft editorial editing
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Validate revised draft cards
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { validateCardDraft } = await import('./.tmp-build/src/ai/editor.js');
+
+          const cards = [
+            {
+              articleId:'sheep',
+              mode:'WTF',
+              interactionType:'MULTIPLE_CHOICE',
+              category:'animals',
+              hook:'Un piccolo gregge è scappato dal recinto e ha deciso di esplorare il vicinato.',
+              question:'Dove sono andate le pecore fuggite dal recinto?',
+              options:['In un parco acquatico','In una stazione ferroviaria','In un nuovo liceo vicino','In un supermercato'],
+              correctOptionIndex:2,
+              reveal:'Un gregge di pecore è fuggito dal recinto e ha raggiunto un liceo vicino, dove un testimone ha scattato delle foto.',
+              resolutionRule:null
+            },
+            {
+              articleId:'slash',
+              mode:'WTF',
+              interactionType:'MULTIPLE_CHOICE',
+              category:'animals',
+              hook:'Una nuova specie di serpente della Nuova Guinea ha ricevuto un nome decisamente rock.',
+              question:'A quale musicista è stata dedicata la nuova specie di serpente?',
+              options:['Brian May','Iggy Pop','Slash','Ozzy Osbourne'],
+              correctOptionIndex:2,
+              reveal:'Il serpente Lielaphis slashi è stato chiamato così in onore di Slash, chitarrista dei Guns N’ Roses, appassionato di rettili fin dall’infanzia.',
+              resolutionRule:null
+            },
+            {
+              articleId:'wildcat',
+              mode:'WTF',
+              interactionType:'TRUE_FALSE',
+              category:'animals',
+              hook:'In Bolivia, una scoperta felina ha riaperto una pagina della storia naturale che sembrava chiusa da decenni.',
+              question:'Gli scienziati hanno scoperto in Bolivia una nuova specie di gatto selvatico, la prima identificata da oltre un secolo.',
+              options:['Vero','Falso'],
+              correctOptionIndex:0,
+              reveal:'Gli scienziati hanno identificato in Bolivia una nuova specie di gatto selvatico, la prima riconosciuta in oltre un secolo.',
+              resolutionRule:null
+            }
+          ];
+
+          for (const card of cards) validateCardDraft(card);
+
+          const sheepHook = cards[0].hook.toLowerCase();
+          if (sheepHook.includes('scuol') || sheepHook.includes('lice')) {
+            throw new Error('Sheep hook still leaks the destination');
+          }
+          const slashQuestion = cards[1].question.toLowerCase();
+          if (slashQuestion.includes('slashi') || slashQuestion.includes('slash')) {
+            throw new Error('Slash question still leaks the answer');
+          }
+
+          console.log('EDITORIAL_REVISIONS_V0620=' + JSON.stringify({
+            revisedCards: cards.length,
+            sheepLeak:false,
+            slashLeak:false,
+            status:'PASS'
+          }));
+          NODE
