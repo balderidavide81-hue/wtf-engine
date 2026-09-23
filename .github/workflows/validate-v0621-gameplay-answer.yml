@@ -1,5 +1,7 @@
 name: Validate v0.6.21 gameplay answer
 
+# Trigger validation after PR creation
+
 on:
   pull_request:
     branches: [main]
