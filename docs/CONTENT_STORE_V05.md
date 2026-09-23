@@ -79,6 +79,11 @@ Engine-estimated AI usage for the persisted run:
 The run also reported 9 previously known stories, confirming that player-facing anti-repeat filtering
 is active before paid generation.
 
+The resulting 15-card edition was then audited, three copy defects were corrected through the
+draft-only edit path, all 15 cards were marked reviewed, and the edition moved to `reviewed`.
+A subsequent public gameplay request still returned `published_edition_not_found`, proving the
+reviewed state remains non-public.
+
 ## Repeated-run safety
 
 A second generation run on the same configured edition day is incremental. Existing edition cards are preserved and only newly persisted card IDs are appended. Repeating the same card ID is a no-op.
@@ -98,6 +103,10 @@ Persistence diagnostics distinguish `newCardIds` from the complete `editionCardI
 - `publish_edition`
 
 An edition can move only `draft → reviewed → published`. Every non-rejected card must be individually reviewed before the edition enters review. Publishing promotes reviewed WTF/STORY cards to `published` and PREDICT cards to `open`. Published editions/cards cannot be silently edited by later generation or review calls.
+
+`edit_card` is draft-only. It preserves mode, interaction type and category, requires a complete
+replacement of the editable copy fields, and validates the resulting card with the same deterministic
+Editor validator before writing. Once the card or edition leaves draft, editing is frozen.
 
 This endpoint is an internal workflow surface protected by `EDITORIAL_API_TOKEN`.
 

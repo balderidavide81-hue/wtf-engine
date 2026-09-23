@@ -79,7 +79,17 @@ edition and card are still in draft state. The current mode, interaction type an
 fixed. The revised full card is run through the same deterministic card validator before the database
 write.
 
-After the three edits are applied and all 15 cards revalidate, the intended one-shot review flow marks
-all 15 cards `reviewed` and moves the edition from `draft` to `reviewed`.
+The production one-shot review completed successfully:
+
+- all three edits were applied;
+- all 15 cards revalidated;
+- all 15 cards moved to lifecycle `reviewed`;
+- edition `2026-09-23` moved from `draft` to `reviewed`;
+- no card was rejected;
+- no publication transition was executed.
+
+The public gameplay endpoint was checked immediately afterward and returned
+`404 published_edition_not_found`, confirming that a reviewed edition remains private until an
+explicit publish action.
 
 Publication is deliberately not part of this step.
