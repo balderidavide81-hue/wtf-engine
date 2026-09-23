@@ -8,7 +8,8 @@ import type {
   PublicEditionRecord,
   PublicFeedRecord,
   PredictionResolutionInput,
-  PredictionVoidInput
+  PredictionVoidInput,
+  DraftCardEditInput
 } from "./types.js";
 
 export interface ContentStore {
@@ -28,6 +29,12 @@ export interface ContentStore {
   getEditorialEdition(editionDate: string): Promise<EditorialEditionRecord | null>;
   getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null>;
   getPublishedFeed(limit: number, before?: string): Promise<PublicFeedRecord>;
+
+  updateDraftCard(
+    editionDate: string,
+    cardId: string,
+    input: DraftCardEditInput
+  ): Promise<void>;
 
   setCardLifecycle(
     editionDate: string,
