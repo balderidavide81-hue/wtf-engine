@@ -93,3 +93,30 @@ The public gameplay endpoint was checked immediately afterward and returned
 explicit publish action.
 
 Publication is deliberately not part of this step.
+
+
+## First publication and public gameplay smoke — v0.6.22
+
+The reviewed edition was published in production on 2026-09-23 through the existing
+`reviewed -> published` transition.
+
+Publication verification:
+
+- 15 / 15 reviewed cards remained in the edition;
+- 14 non-PREDICT cards moved to lifecycle `published`;
+- the single PREDICT card moved to lifecycle `open`;
+- no card copy was changed during publication;
+- no AI call was made by the publication step.
+
+The public `GET /api/gameplay-daily?date=2026-09-23` endpoint returned HTTP 200 with all 15 cards.
+For published WTF/STORY cards, `resolvedOptionIndex` and `reveal` remained null, confirming that
+answers are not exposed before play. The open PREDICT card exposed its resolution rule but no outcome.
+
+A production HTTP smoke test then submitted option 0 on a published WTF card through
+`POST /api/gameplay-answer`. The endpoint returned HTTP 200 with the submitted choice, correctness,
+the correct option index and reveal only after submission. The same endpoint rejected the open
+PREDICT card with HTTP 404 `answerable_published_card_not_found`.
+
+This completes the first end-to-end production path:
+
+`collect -> Scout -> Editor -> persist draft -> editorial edits/review -> publish -> public play -> reveal after answer`.
