@@ -1,6 +1,6 @@
 # WTF Engine v0.5 — Content Store / Daily Edition
 
-Status: source-only foundation. The SQL migration is prepared but must not be applied automatically.
+Status: production persistence active. The first end-to-end persisted daily draft was validated on 2026-09-23; publication remains an explicit editorial action.
 
 ## Goal
 
@@ -24,7 +24,9 @@ Ingestion must upsert an already-seen article rather than paying Scout/Editor ag
 
 ## Deployment discipline
 
-Do not apply this migration or deploy intermediate v0.5 work. Build the adapter and pipeline integration on the feature branch, then review the complete coherent block before one migration/deployment.
+Historical v0.5 work kept migration/deployment source-only until the persistence block was coherent. The
+schema is now active in production and has been exercised end-to-end. Further schema changes should
+still follow the same discipline: prepare and validate as a coherent block before applying them.
 
 ## Pipeline integration
 
@@ -47,6 +49,35 @@ card merely because more than 12 KEEP items were found in one run.
 Validation examples:
 - 16 eligible items -> 12 + 4;
 - 30 eligible items -> 12 + 12 + 6.
+
+## First production draft validation
+
+On 2026-09-23 the normal persisted generation path was executed against production Neon with the
+v0.6.19 complete-Editor batching fix.
+
+Result:
+
+- 30 candidates submitted to Scout;
+- 15 `KEEP + SUPPORTED` candidates;
+- 15 submitted to Editor;
+- 15 valid cards returned;
+- 0 Scout omissions;
+- 0 Editor omissions;
+- 15 new cards persisted;
+- daily edition date: `2026-09-23`;
+- edition status: `draft`;
+- 15 cards read back through the editorial store;
+- every returned card had lifecycle status `draft`;
+- no review or publish transition was executed.
+
+Engine-estimated AI usage for the persisted run:
+
+- Scout: $0.0045118;
+- Editor: $0.0055522;
+- total: $0.010064.
+
+The run also reported 9 previously known stories, confirming that player-facing anti-repeat filtering
+is active before paid generation.
 
 ## Repeated-run safety
 
@@ -95,7 +126,7 @@ The paid generation endpoint `/api/daily` is no longer public: it requires `Auth
 
 Scout and Editor persistence now has database uniqueness per `(article_id, prompt_version)`, with conflict-safe writes. The inline Editor prompt is recorded explicitly as `editor/inline-v0.3` rather than implying a nonexistent external prompt file.
 
-The public content surface remains the read-only published gameplay endpoint. Internal collection, Scout, generation and editorial routes all require server-side bearer authorization. Migration/deploy remain deliberately unapplied during source audit.
+The public content surface remains the read-only published gameplay endpoint. Internal collection, Scout, generation and editorial routes all require server-side bearer authorization. Migration/deploy were deliberately unapplied during that source-audit stage; the persistence schema is now active in production.
 
 ## Final pre-migration audit notes
 
