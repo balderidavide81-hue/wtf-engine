@@ -1,0 +1,54 @@
+name: Validate v0.6.21 gameplay answer
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: ./node_modules/.bin/tsc --noEmit false --outDir .tmp-build
+
+      - name: Validate answer evaluation
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { evaluatePublishedAnswer } = await import('./.tmp-build/src/gameplay/answer.js');
+
+          const card = {
+            id:'card-1',
+            options:['A','B','C','D'],
+            correctOptionIndex:2,
+            reveal:'La risposta corretta è C.'
+          };
+
+          const correct = evaluatePublishedAnswer(card, 2);
+          if (!correct.correct || correct.correctOptionIndex !== 2 || correct.selectedOptionIndex !== 2) {
+            throw new Error('Correct answer evaluation failed');
+          }
+          const wrong = evaluatePublishedAnswer(card, 0);
+          if (wrong.correct || wrong.correctOptionIndex !== 2 || wrong.selectedOptionIndex !== 0) {
+            throw new Error('Wrong answer evaluation failed');
+          }
+
+          let rangeRejected=false;
+          try { evaluatePublishedAnswer(card, 4); } catch (error) {
+            rangeRejected = error instanceof RangeError;
+          }
+          if (!rangeRejected) throw new Error('Out-of-range answer was not rejected');
+
+          console.log('GAMEPLAY_ANSWER_V0621=' + JSON.stringify({
+            correct,
+            wrong,
+            rangeRejected,
+            status:'PASS'
+          }));
+          NODE
