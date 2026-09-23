@@ -5,7 +5,8 @@ import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
 import { EDITOR_PROMPT_VERSION } from "../ai/editor.js";
 import type { ContentStore } from "./content-store.js";
-import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput, DraftCardEditInput } from "./types.js";
+import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput, DraftCardEditInput, GameplayAnswerRecord } from "./types.js";
+import { evaluatePublishedAnswer } from "../gameplay/answer.js";
 
 function requireDatabaseUrl(): string {
   const value = process.env.DATABASE_URL;
@@ -584,6 +585,36 @@ export class NeonContentStore implements ContentStore {
     });
 
     return { cards };
+  }
+
+  async answerPublishedCard(
+    cardId: string,
+    selectedOptionIndex: number
+  ): Promise<GameplayAnswerRecord | null> {
+    const result = await this.pool.query(
+      `select id, options, correct_option_index, reveal
+         from game_cards
+        where id=$1
+          and lifecycle_status='published'
+          and published_at is not null
+          and mode <> 'PREDICT'`,
+      [cardId]
+    );
+    if (result.rowCount === 0) return null;
+
+    const row = result.rows[0];
+    if (!Array.isArray(row.options) || row.correct_option_index === null) {
+      return null;
+    }
+    return evaluatePublishedAnswer(
+      {
+        id: String(row.id),
+        options: row.options.map((option: unknown) => String(option)),
+        correctOptionIndex: Number(row.correct_option_index),
+        reveal: String(row.reveal)
+      },
+      selectedOptionIndex
+    );
   }
 
   async setArticleMediaUsage(

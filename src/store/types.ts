@@ -89,6 +89,14 @@ export interface PublicFeedRecord {
   cards: PublicGameCardRecord[];
 }
 
+export interface GameplayAnswerRecord {
+  cardId: string;
+  selectedOptionIndex: number;
+  correct: boolean;
+  correctOptionIndex: number;
+  reveal: string;
+}
+
 export interface PredictionResolutionInput {
   outcomeOptionIndex: number;
   evidenceUrl: string;

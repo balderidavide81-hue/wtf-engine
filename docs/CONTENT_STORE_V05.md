@@ -116,7 +116,13 @@ This endpoint is an internal workflow surface protected by `EDITORIAL_API_TOKEN`
 
 `GET /api/gameplay-daily?date=YYYY-MM-DD` is intentionally read-only and public. It returns only a published edition and never exposes drafts, rejected cards, Scout diagnostics, AI costs, internal IDs for runs, or editorial actions.
 
-The public edition feed suppresses answer/reveal data for active cards. Resolved PREDICT cards expose their resolved option and reveal; voided PREDICT cards remain visible with a void reason so a future client can settle/refund them. PREDICT resolution rules are public before adjudication for transparency. WTF/STORY answer reveal should be delivered later through a gameplay answer flow rather than embedded in the initial edition payload.
+The public edition feed suppresses answer/reveal data for active cards. Resolved PREDICT cards expose their resolved option and reveal; voided PREDICT cards remain visible with a void reason so a future client can settle/refund them. PREDICT resolution rules are public before adjudication for transparency.
+
+For published non-PREDICT cards, `POST /api/gameplay-answer` accepts `cardId` and
+`selectedOptionIndex`. Only after a valid submission does it return whether the choice was correct,
+the correct option index and the reveal. Reviewed/draft cards, unpublished cards and PREDICT cards
+cannot be resolved through this endpoint. The initial edition payload therefore never needs to expose
+WTF/STORY answers before play.
 
 The gameplay response is cacheable at the edge for 60 seconds with stale-while-revalidate, keeping normal player reads independent from AI generation.
 
