@@ -276,5 +276,21 @@ call), combining usage, globally balancing the returned cards and revalidating t
 Deterministic validation confirms 16 eligible items split 12+4 and 30 eligible items split 12+12+6
 without loss or reordering.
 
-Next step: execute the first real daily generation with persistence enabled and verify that the result
-is stored as a **draft** edition for editorial review, with no automatic publication.
+## First persisted daily draft
+
+The first production run with persistence enabled completed successfully on 2026-09-23:
+
+- Scout: 30 candidates, 0 omissions;
+- Editor: 15 eligible, 15 submitted, 15 edited, 0 omissions;
+- persisted new cards: 15;
+- edition: `2026-09-23`;
+- edition status: `draft`;
+- editorial read-back: 15 cards;
+- total engine-estimated AI cost: $0.010064.
+
+This validates the intended boundary: generation can now create reviewable draft content end-to-end
+without publishing anything automatically.
+
+Next step: review the 15 persisted draft cards through the editorial workflow, reject or approve them
+individually, and only then decide whether to move the edition to `reviewed`. Do not publish
+automatically.
