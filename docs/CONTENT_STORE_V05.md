@@ -34,6 +34,20 @@ When `DATABASE_URL` is configured, `/api/daily` now uses the Neon store. Before 
 
 The API report exposes `previouslyProcessed` and, when persistence is active, run/edition/card IDs for auditability.
 
+## Complete Editor batching before persistence
+
+v0.6.19 removes the previous first-12 Editor truncation. Every Scout result that is both `KEEP` and
+`SUPPORTED` is now submitted to Editor in bounded calls of at most `EDITOR_BATCH_LIMIT` items.
+The calls may execute concurrently, their usage diagnostics are combined, all returned cards are
+globally answer-balanced, and the complete set is revalidated before any persistence occurs.
+
+This prevents a KEEP item from becoming permanently Scout-processed without ever receiving a game
+card merely because more than 12 KEEP items were found in one run.
+
+Validation examples:
+- 16 eligible items -> 12 + 4;
+- 30 eligible items -> 12 + 12 + 6.
+
 ## Repeated-run safety
 
 A second generation run on the same configured edition day is incremental. Existing edition cards are preserved and only newly persisted card IDs are appended. Repeating the same card ID is a no-op.

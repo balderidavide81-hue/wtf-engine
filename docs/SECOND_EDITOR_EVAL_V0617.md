@@ -245,12 +245,36 @@ Validation PASS:
 
 Prompt version: `editor/inline-v0.8-final-hardening`.
 
-## Recommended next step
+## Targeted v0.6.18 live regression
 
-Run a small targeted live regression on the two remaining real defects from this evaluation:
+The two residual real cases were regenerated in production with
+`editor/inline-v0.8-final-hardening`.
 
-- Bolivian wildcat semantic hook leakage;
-- Slim Jim unsupplied `popolare` adjective.
+Result: PASS 2/2.
 
-If those regressions pass, enable the normal daily pipeline to persist generated cards as **drafts for
-editorial review**, not automatic publication.
+Slim Jim:
+- the hook no longer adds the unsupplied `popolare` adjective;
+- no derived unit conversion is added;
+- the supplied 429 feet 5.4 inches value remains grounded.
+
+Bolivian wildcat:
+- the hook no longer paraphrases the answer as "a new wildcat species";
+- the generated hook teases a zoological gap without revealing the answer category;
+- the card remains factually grounded.
+
+The two-card run returned 2/2 valid cards and had an engine-estimated cost of $0.0013252.
+
+## v0.6.19 persistence readiness
+
+Before the first persisted daily draft, a pipeline bug was found: the normal pipeline limited Editor
+submission to the first 12 KEEP+SUPPORTED items even when Scout returned more. Because all Scout
+results were persisted, additional KEEP items could then be considered processed without ever getting
+an Editor card.
+
+v0.6.19 fixes this by splitting every KEEP+SUPPORTED item into bounded Editor calls (maximum 12 per
+call), combining usage, globally balancing the returned cards and revalidating them before persistence.
+Deterministic validation confirms 16 eligible items split 12+4 and 30 eligible items split 12+12+6
+without loss or reordering.
+
+Next step: execute the first real daily generation with persistence enabled and verify that the result
+is stored as a **draft** edition for editorial review, with no automatic publication.

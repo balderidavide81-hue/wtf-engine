@@ -1,5 +1,11 @@
 import { OpenAIScout, SCOUT_BATCH_LIMIT, type AiUsageDiagnostics } from "../ai/scout.js";
-import { OpenAIEditor, EDITOR_BATCH_LIMIT, type GameCardDraft } from "../ai/editor.js";
+import {
+  OpenAIEditor,
+  EDITOR_BATCH_LIMIT,
+  balanceResolvedAnswerPositions,
+  validateCardDraft,
+  type GameCardDraft
+} from "../ai/editor.js";
 import type { ArticleCandidate, ScoutResult } from "../domain/types.js";
 import { collect, type CollectionReport } from "../ingest/collect.js";
 import { diversifyQueue, editorialLane } from "./diversity.js";
@@ -10,6 +16,33 @@ import { comparePreScoutPriority, preScoutPlayability } from "./playability.js";
 import { dedupeNearStories } from "../filters/story-dedupe.js";
 
 const DEFAULT_SCOUT_LIMIT = SCOUT_BATCH_LIMIT;
+
+export function splitEditorBatches<T>(items: T[], batchSize = EDITOR_BATCH_LIMIT): T[][] {
+  const size = Math.max(1, Math.min(Math.trunc(batchSize), EDITOR_BATCH_LIMIT));
+  const batches: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    batches.push(items.slice(index, index + size));
+  }
+  return batches;
+}
+
+export function combineAiUsageDiagnostics(usages: AiUsageDiagnostics[]): AiUsageDiagnostics {
+  const first = usages[0];
+  if (!first) throw new Error("Cannot combine empty AI usage diagnostics");
+  for (const usage of usages) {
+    if (usage.model !== first.model) {
+      throw new Error(`Cannot combine Editor usage across models: ${first.model} vs ${usage.model}`);
+    }
+  }
+  return {
+    ...first,
+    inputTokens: usages.reduce((sum, usage) => sum + usage.inputTokens, 0),
+    cachedInputTokens: usages.reduce((sum, usage) => sum + usage.cachedInputTokens, 0),
+    outputTokens: usages.reduce((sum, usage) => sum + usage.outputTokens, 0),
+    totalTokens: usages.reduce((sum, usage) => sum + usage.totalTokens, 0),
+    estimatedCostUsd: usages.reduce((sum, usage) => sum + usage.estimatedCostUsd, 0)
+  };
+}
 
 export function selectScoutCandidates(candidates: ArticleCandidate[], limit: number): ArticleCandidate[] {
   // Order by deterministic quality first, then drop paraphrased cross-source
@@ -195,15 +228,28 @@ export async function buildDailyQueue(
 
   const queue = diversifyQueue(rankedQueue);
   const editor = new OpenAIEditor();
-  const editorEligible = queue.filter(
+  const editorSubmittedItems = queue.filter(
     item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED"
-  ).length;
+  );
+  const editorEligible = editorSubmittedItems.length;
 
-  const editorSubmittedItems = queue
-    .filter(item => item.scout.decision === "KEEP" && item.scout.evidenceStatus === "SUPPORTED")
-    .slice(0, EDITOR_BATCH_LIMIT);
+  const editorInputBatches = splitEditorBatches(editorSubmittedItems);
+  const editorBatchResults = editorInputBatches.length > 0
+    ? await Promise.all(
+        editorInputBatches.map(items => editor.draft(items, EDITOR_BATCH_LIMIT))
+      )
+    : [await editor.draft([], EDITOR_BATCH_LIMIT)];
 
-  const edited = await editor.draft(editorSubmittedItems);
+  const combinedEditorCards = balanceResolvedAnswerPositions(
+    editorBatchResults.flatMap(batchResult => batchResult.cards)
+  );
+  for (const card of combinedEditorCards) validateCardDraft(card);
+
+  const edited = {
+    cards: combinedEditorCards,
+    usage: combineAiUsageDiagnostics(editorBatchResults.map(batchResult => batchResult.usage))
+  };
+
   const submittedIds = new Set(editorSubmittedItems.map(item => item.candidate.id));
   const returnedIds = new Set(edited.cards.map(card => card.articleId));
   const editorOmittedArticleIds = editorSubmittedItems
