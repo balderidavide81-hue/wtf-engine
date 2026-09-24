@@ -276,8 +276,8 @@
     hideMessage();
     try {
       await api("POST", body);
-      message(success, "ok");
       await loadEdition(false);
+      message(success, "ok");
     } catch (err) {
       message(err instanceof Error ? err.message : String(err), "error");
     }
