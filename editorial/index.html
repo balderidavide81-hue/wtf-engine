@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src https: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>WTF Engine · Editorial Console</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;background:#0b0d12;color:#f4f6fb}
+    *{box-sizing:border-box} body{margin:0;background:#0b0d12;color:#f4f6fb}
+    button,input,textarea,select{font:inherit}
+    a{color:#9cc2ff}
+    .shell{max-width:1280px;margin:0 auto;padding:28px 20px 80px}
+    .top{display:flex;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+    h1{font-size:28px;margin:0 0 6px}.muted{color:#9ba4b6}.small{font-size:12px}
+    .panel,.card{background:#121620;border:1px solid #252c3b;border-radius:16px;box-shadow:0 14px 45px rgba(0,0,0,.18)}
+    .toolbar{display:grid;grid-template-columns:minmax(150px,210px) minmax(240px,1fr) auto;gap:12px;padding:16px;margin-bottom:18px}
+    label{display:grid;gap:6px;color:#c8d0df;font-size:13px}
+    input,textarea,select{width:100%;background:#0d1119;border:1px solid #313a4d;color:#f6f7fa;border-radius:10px;padding:10px 12px;outline:none}
+    input:focus,textarea:focus,select:focus{border-color:#7aa2ff}
+    textarea{min-height:88px;resize:vertical;line-height:1.45}
+    button{border:0;border-radius:10px;padding:10px 14px;background:#2e6df6;color:white;font-weight:700;cursor:pointer}
+    button.secondary{background:#252c3b} button.good{background:#1d8f62} button.bad{background:#a83b4b} button.warn{background:#9a6814}
+    button:disabled{opacity:.42;cursor:not-allowed}
+    .statusbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 16px;margin-bottom:18px}
+    .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:#252c3b;font-size:12px;font-weight:700}
+    .pill.draft{background:#574414}.pill.reviewed{background:#174d70}.pill.published{background:#166044}.pill.rejected{background:#6d2633}.pill.open{background:#654c13}.pill.resolved{background:#174f39}
+    .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+    .grid{display:grid;gap:16px}.card{padding:18px}
+    .card-head{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+    .meta{display:flex;gap:7px;flex-wrap:wrap;margin:7px 0}.source-title{font-size:15px;font-weight:800;margin:0 0 4px}
+    .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px);gap:18px}
+    .fields{display:grid;gap:12px}.side{display:grid;gap:12px;align-content:start}
+    .option-row{display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;align-items:center}
+    .option-index{display:grid;place-items:center;height:39px;border-radius:9px;background:#232a39;color:#cbd4e5;font-weight:800}
+    .mini-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .image{width:100%;max-height:220px;object-fit:cover;border-radius:12px;border:1px solid #2b3344;background:#0d1119}
+    .notice{padding:12px 14px;border:1px solid #39445a;background:#141a27;border-radius:12px;color:#cbd4e5}
+    .error{border-color:#8f3442;background:#29151a;color:#ffd4da}.ok{border-color:#2b7459;background:#12251e;color:#c9ffeb}
+    .hidden{display:none!important}.right{margin-left:auto}
+    .section-title{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#8f99ad;font-weight:800}
+    .predict-box{border-top:1px solid #273044;margin-top:14px;padding-top:14px;display:grid;gap:10px}
+    @media(max-width:840px){.toolbar{grid-template-columns:1fr}.cols{grid-template-columns:1fr}.top{display:block}.actions{margin-left:0}}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <div class="top">
+    <div>
+      <h1>WTF Engine · Editorial Console</h1>
+      <div class="muted">Review, correzione e pubblicazione delle Daily Edition. Il token resta solo in memoria nella pagina.</div>
+    </div>
+    <span class="pill">v0.6.23 source-only</span>
+  </div>
+
+  <section class="panel toolbar">
+    <label>Data edizione
+      <input id="date" type="date">
+    </label>
+    <label>EDITORIAL_API_TOKEN
+      <input id="token" type="password" autocomplete="off" placeholder="Bearer token">
+    </label>
+    <div style="align-self:end;display:flex;gap:8px">
+      <button id="load">Carica edizione</button>
+      <button id="clear" class="secondary" type="button">Pulisci token</button>
+    </div>
+  </section>
+
+  <div id="message" class="notice hidden" role="status"></div>
+
+  <section id="summary" class="panel statusbar hidden">
+    <strong id="editionDate"></strong>
+    <span id="editionStatus" class="pill"></span>
+    <span id="counts" class="muted small"></span>
+    <div class="actions">
+      <button id="reviewEdition" class="good">Chiudi review edizione</button>
+      <button id="publishEdition" class="warn">Pubblica edizione</button>
+      <button id="reload" class="secondary">Ricarica</button>
+    </div>
+  </section>
+
+  <section id="cards" class="grid"></section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const state = { edition: null, token: "" };
+  const today = new Date();
+  $("date").value = [
+    today.getFullYear(),
+    String(today.getMonth()+1).padStart(2,"0"),
+    String(today.getDate()).padStart(2,"0")
+  ].join("-");
+
+  const escapeHtml = value => String(value ?? "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+
+  function message(text, kind="") {
+    const el = $("message");
+    el.textContent = text;
+    el.className = "notice" + (kind ? " " + kind : "");
+  }
+  function hideMessage(){ $("message").className = "notice hidden"; }
+
+  async function api(method, body) {
+    state.token = $("token").value.trim();
+    if (!state.token) throw new Error("Inserisci EDITORIAL_API_TOKEN.");
+    const date = $("date").value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Data edizione non valida.");
+    const response = await fetch("/api/editorial?date=" + encodeURIComponent(date), {
+      method,
+      headers: {
+        "Authorization": "Bearer " + state.token,
+        ...(body ? {"Content-Type":"application/json"} : {})
+      },
+      ...(body ? {body: JSON.stringify(body)} : {})
+    });
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = payload?.message || payload?.error || ("HTTP " + response.status);
+      throw new Error(detail);
+    }
+    return payload;
+  }
+
+  async function loadEdition(showSuccess=false) {
+    hideMessage();
+    $("load").disabled = true;
+    try {
+      state.edition = await api("GET");
+      render();
+      if (showSuccess) message("Edizione ricaricata.", "ok");
+    } catch (err) {
+      state.edition = null;
+      render();
+      message(err instanceof Error ? err.message : String(err), "error");
+    } finally {
+      $("load").disabled = false;
+    }
+  }
+
+  function editionCounts() {
+    const cards = state.edition?.cards || [];
+    const by = {};
+    for (const card of cards) by[card.lifecycleStatus] = (by[card.lifecycleStatus] || 0) + 1;
+    return Object.entries(by).map(([k,v]) => k + ": " + v).join(" · ");
+  }
+
+  function canReviewEdition() {
+    if (state.edition?.status !== "draft") return false;
+    const active = state.edition.cards.filter(c => c.lifecycleStatus !== "rejected");
+    return active.length > 0 && active.every(c => c.lifecycleStatus === "reviewed");
+  }
+
+  function imageFor(card) {
+    const allowed = ["remote-display","cache-allowed","owned"].includes(card.imageUsageStatus);
+    const url = card.imageUrlCached || card.imageUrlOriginal;
+    if (!allowed || !url) return "";
+    return '<img class="image" loading="lazy" referrerpolicy="no-referrer" src="' + escapeHtml(url) + '" alt="' + escapeHtml(card.imageAltText || "") + '">';
+  }
+
+  function renderCard(card, index) {
+    const draftEdition = state.edition.status === "draft";
+    const editable = draftEdition && card.lifecycleStatus === "draft";
+    const reviewable = draftEdition && ["draft","reviewed","rejected"].includes(card.lifecycleStatus);
+    const published = state.edition.status === "published";
+    const predictOpen = published && card.mode === "PREDICT" && card.lifecycleStatus === "open";
+    const optionFields = card.options.map((option, i) => `
+      <div class="option-row">
+        <div class="option-index">${String.fromCharCode(65+i)}</div>
+        <input data-field="option" data-option="${i}" value="${escapeHtml(option)}" ${editable ? "" : "disabled"}>
+      </div>`).join("");
+
+    const correctChoices = ['<option value="">— nessuna (PREDICT) —</option>']
+      .concat(card.options.map((_,i) => '<option value="'+i+'" '+(card.correctOptionIndex===i?'selected':'')+'>'+String.fromCharCode(65+i)+'</option>'))
+      .join("");
+
+    const mediaChoices = ["unreviewed","link-only","remote-display","cache-allowed","owned"]
+      .map(x => '<option '+(card.imageUsageStatus===x?'selected':'')+' value="'+x+'">'+x+'</option>').join("");
+
+    return `
+      <article class="card" data-card="${escapeHtml(card.id)}">
+        <div class="card-head">
+          <div>
+            <div class="source-title">#${index+1} · ${escapeHtml(card.title)}</div>
+            <div class="meta">
+              <span class="pill">${escapeHtml(card.mode)}</span>
+              <span class="pill">${escapeHtml(card.interactionType)}</span>
+              <span class="pill">${escapeHtml(card.category)}</span>
+              <span class="pill ${escapeHtml(card.lifecycleStatus)}">${escapeHtml(card.lifecycleStatus)}</span>
+            </div>
+            <a href="${escapeHtml(card.sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(card.sourceName)} ↗</a>
+          </div>
+          <span class="muted small">${escapeHtml(card.id)}</span>
+        </div>
+
+        <div class="cols">
+          <div class="fields">
+            <label>Hook<textarea data-field="hook" ${editable ? "" : "disabled"}>${escapeHtml(card.hook)}</textarea></label>
+            <label>Domanda<textarea data-field="question" ${editable ? "" : "disabled"}>${escapeHtml(card.question)}</textarea></label>
+            <div>
+              <div class="section-title" style="margin-bottom:7px">Opzioni</div>
+              <div class="fields">${optionFields}</div>
+            </div>
+            <label>Risposta corretta
+              <select data-field="correctOptionIndex" ${editable ? "" : "disabled"}>${correctChoices}</select>
+            </label>
+            <label>Reveal<textarea data-field="reveal" ${editable ? "" : "disabled"}>${escapeHtml(card.reveal)}</textarea></label>
+            <label>Resolution rule<textarea data-field="resolutionRule" ${editable ? "" : "disabled"}>${escapeHtml(card.resolutionRule || "")}</textarea></label>
+
+            <div class="mini-actions">
+              <button class="secondary" data-action="save" ${editable ? "" : "disabled"}>Salva modifiche</button>
+              <button class="good" data-action="review" ${reviewable ? "" : "disabled"}>Approva card</button>
+              <button class="bad" data-action="reject" ${reviewable ? "" : "disabled"}>Scarta card</button>
+            </div>
+          </div>
+
+          <aside class="side">
+            ${imageFor(card)}
+            <div class="notice">
+              <div class="section-title">Media rights</div>
+              <div style="margin:8px 0">Originale: ${card.imageUrlOriginal ? '<a target="_blank" rel="noopener noreferrer" href="'+escapeHtml(card.imageUrlOriginal)+'">apri immagine ↗</a>' : 'nessuna'}</div>
+              <label>Uso immagine
+                <select data-field="mediaStatus" ${draftEdition ? "" : "disabled"}>${mediaChoices}</select>
+              </label>
+              <label>Cached URL (opzionale)
+                <input data-field="cachedUrl" value="${escapeHtml(card.imageUrlCached || "")}" ${draftEdition ? "" : "disabled"}>
+              </label>
+              <button class="secondary" data-action="media" ${draftEdition ? "" : "disabled"}>Aggiorna media</button>
+            </div>
+
+            ${predictOpen ? `
+            <div class="predict-box">
+              <div class="section-title">Risoluzione PREDICT</div>
+              <label>Esito
+                <select data-field="outcome">${card.options.map((o,i)=>'<option value="'+i+'">'+String.fromCharCode(65+i)+' · '+escapeHtml(o)+'</option>').join("")}</select>
+              </label>
+              <label>Evidence URL<input data-field="evidenceUrl" type="url" placeholder="https://..."></label>
+              <label>Evidence note<textarea data-field="evidenceNote" placeholder="Dato/fonte che chiude la prediction"></textarea></label>
+              <button class="good" data-action="resolve">Risolvi PREDICT</button>
+              <label>Motivo void<textarea data-field="voidReason" placeholder="Perché non è risolvibile"></textarea></label>
+              <button class="bad" data-action="void">Void PREDICT</button>
+            </div>` : ""}
+          </aside>
+        </div>
+      </article>`;
+  }
+
+  function render() {
+    const edition = state.edition;
+    if (!edition) {
+      $("summary").classList.add("hidden");
+      $("cards").innerHTML = "";
+      return;
+    }
+    $("summary").classList.remove("hidden");
+    $("editionDate").textContent = edition.editionDate;
+    $("editionStatus").textContent = edition.status;
+    $("editionStatus").className = "pill " + edition.status;
+    $("counts").textContent = edition.cards.length + " card · " + editionCounts();
+    $("reviewEdition").disabled = !canReviewEdition();
+    $("publishEdition").disabled = edition.status !== "reviewed";
+    $("cards").innerHTML = edition.cards.map(renderCard).join("");
+  }
+
+  function cardElement(button){ return button.closest("[data-card]"); }
+  function cardByElement(el){ return state.edition.cards.find(c => c.id === el.dataset.card); }
+  function field(el, name){ return el.querySelector('[data-field="'+name+'"]'); }
+
+  async function mutate(body, success) {
+    hideMessage();
+    try {
+      await api("POST", body);
+      await loadEdition(false);
+      message(success, "ok");
+    } catch (err) {
+      message(err instanceof Error ? err.message : String(err), "error");
+    }
+  }
+
+  $("cards").addEventListener("click", async event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const el = cardElement(button);
+    const card = cardByElement(el);
+    if (!card) return;
+    const action = button.dataset.action;
+
+    if (action === "save") {
+      const options = [...el.querySelectorAll('[data-field="option"]')].map(x => x.value.trim());
+      const rawCorrect = field(el,"correctOptionIndex").value;
+      await mutate({
+        action:"edit_card", cardId:card.id,
+        hook:field(el,"hook").value.trim(),
+        question:field(el,"question").value.trim(),
+        options,
+        correctOptionIndex: rawCorrect === "" ? null : Number(rawCorrect),
+        reveal:field(el,"reveal").value.trim(),
+        resolutionRule: field(el,"resolutionRule").value.trim() || null
+      }, "Card salvata.");
+    }
+    if (action === "review") await mutate({action:"review_card",cardId:card.id},"Card approvata.");
+    if (action === "reject") {
+      if (confirm("Scartare questa card dall’edizione?")) await mutate({action:"reject_card",cardId:card.id},"Card scartata.");
+    }
+    if (action === "media") {
+      await mutate({
+        action:"set_media_usage",
+        articleId:card.articleId,
+        status:field(el,"mediaStatus").value,
+        cachedUrl:field(el,"cachedUrl").value.trim()
+      },"Stato media aggiornato.");
+    }
+    if (action === "resolve") {
+      if (!confirm("Confermare la risoluzione? L’esito diventa immutabile.")) return;
+      await mutate({
+        action:"resolve_prediction",
+        cardId:card.id,
+        outcomeOptionIndex:Number(field(el,"outcome").value),
+        evidenceUrl:field(el,"evidenceUrl").value.trim(),
+        evidenceNote:field(el,"evidenceNote").value.trim()
+      },"PREDICT risolta.");
+    }
+    if (action === "void") {
+      if (!confirm("Rendere VOID questa PREDICT?")) return;
+      await mutate({
+        action:"void_prediction",
+        cardId:card.id,
+        reason:field(el,"voidReason").value.trim(),
+        evidenceUrl:field(el,"evidenceUrl").value.trim() || undefined
+      },"PREDICT resa void.");
+    }
+  });
+
+  $("load").addEventListener("click", () => loadEdition(true));
+  $("reload").addEventListener("click", () => loadEdition(true));
+  $("clear").addEventListener("click", () => { state.token=""; $("token").value=""; message("Token rimosso dalla pagina."); });
+  $("reviewEdition").addEventListener("click", async () => {
+    if (!confirm("Chiudere la review? Dopo questo passaggio le card non saranno più modificabili.")) return;
+    await mutate({action:"review_edition"},"Edizione spostata a reviewed.");
+  });
+  $("publishEdition").addEventListener("click", async () => {
+    if (!confirm("PUBBLICARE l’edizione? Diventerà visibile agli endpoint gameplay pubblici.")) return;
+    await mutate({action:"publish_edition"},"Edizione pubblicata.");
+  });
+})();
+</script>
+</body>
+</html>
