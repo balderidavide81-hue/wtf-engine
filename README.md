@@ -37,6 +37,7 @@ usage is approved.
 - `POST /api/scout` — generation token
 - `POST /api/daily?limit=30` — generation token
 - `GET|POST /api/editorial?date=YYYY-MM-DD` — editorial token
+- `GET /api/editorial-audit?date=YYYY-MM-DD` — editorial token, read-only deterministic edition audit
 - `GET /api/gameplay-daily?date=YYYY-MM-DD`
 - `GET /api/feed?limit=30&before=<ISO timestamp>`
 
