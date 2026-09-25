@@ -78,6 +78,20 @@
   </section>
 
   <div id="generationResult" class="notice hidden" role="status"></div>
+
+  <section class="panel toolbar" style="grid-template-columns:minmax(240px,1fr) auto">
+    <label>Fonte PREDICT
+      <select id="predictSource">
+        <option value="">— carica registry —</option>
+      </select>
+    </label>
+    <div style="align-self:end;display:flex;gap:8px">
+      <button id="loadPredictSources" class="secondary" type="button">Carica fonti PREDICT</button>
+      <button id="probePredictSource" class="secondary" type="button" disabled>Probe runtime</button>
+    </div>
+  </section>
+  <div id="predictSourceResult" class="notice hidden" role="status"></div>
+
   <div id="message" class="notice hidden" role="status"></div>
 
   <section id="summary" class="panel statusbar hidden">
@@ -111,7 +125,7 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  const state = { edition: null, audit: null, gate: null, token: "" };
+  const state = { edition: null, audit: null, gate: null, predictSources: [], token: "" };
   const today = new Date();
   $("date").value = [
     today.getFullYear(),
@@ -135,6 +149,12 @@
     el.className = "notice" + (kind ? " " + kind : "");
   }
   function hideGenerationMessage(){ $("generationResult").className = "notice hidden"; }
+  function predictSourceMessage(text, kind="") {
+    const el = $("predictSourceResult");
+    el.textContent = text;
+    el.className = "notice" + (kind ? " " + kind : "");
+  }
+  function hidePredictSourceMessage(){ $("predictSourceResult").className = "notice hidden"; }
 
   async function api(method, body) {
     state.token = $("token").value.trim();
@@ -179,6 +199,39 @@
       throw new Error(detail);
     }
     return payload;
+  }
+
+  async function predictSourceApi(sourceId) {
+    state.token = $("token").value.trim();
+    if (!state.token) throw new Error("Inserisci EDITORIAL_API_TOKEN.");
+    const suffix = sourceId ? "?source=" + encodeURIComponent(sourceId) : "";
+    const response = await fetch("/api/predict-source-health" + suffix, {
+      method: "GET",
+      headers: { "Authorization": "Bearer " + state.token }
+    });
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = payload?.message || payload?.error || ("HTTP " + response.status);
+      throw new Error(detail);
+    }
+    return payload;
+  }
+
+  async function loadPredictSources() {
+    const payload = await predictSourceApi();
+    state.predictSources = Array.isArray(payload.sources) ? payload.sources : [];
+    $("predictSource").innerHTML =
+      '<option value="">— scegli fonte —</option>' +
+      state.predictSources.map(source =>
+        '<option value="' + escapeHtml(source.id) + '">' +
+        escapeHtml(source.name) + " · " +
+        escapeHtml(source.automationStatus) + " · " +
+        escapeHtml(source.suitability) +
+        "</option>"
+      ).join("");
+    $("probePredictSource").disabled = !$("predictSource").value;
+    return state.predictSources.length;
   }
 
   async function loadAudit() {
@@ -500,6 +553,45 @@
   });
 
   $("load").addEventListener("click", () => loadEdition(true));
+  $("predictSource").addEventListener("change", () => {
+    $("probePredictSource").disabled = !$("predictSource").value;
+    hidePredictSourceMessage();
+  });
+  $("loadPredictSources").addEventListener("click", async () => {
+    hidePredictSourceMessage();
+    $("loadPredictSources").disabled = true;
+    try {
+      const count = await loadPredictSources();
+      predictSourceMessage("Registry PREDICT caricato · " + count + " fonti.", "ok");
+    } catch (err) {
+      predictSourceMessage(err instanceof Error ? err.message : String(err), "error");
+    } finally {
+      $("loadPredictSources").disabled = false;
+    }
+  });
+  $("probePredictSource").addEventListener("click", async () => {
+    hidePredictSourceMessage();
+    const sourceId = $("predictSource").value;
+    if (!sourceId) return;
+    $("probePredictSource").disabled = true;
+    try {
+      const result = await predictSourceApi(sourceId);
+      predictSourceMessage(
+        result.source.name +
+        " · " + (result.ok ? "RAGGIUNGIBILE" : "NON RAGGIUNGIBILE") +
+        " · HTTP " + (result.httpStatus ?? "—") +
+        " · " + Number(result.latencyMs ?? 0) + " ms" +
+        " · host finale " + (result.finalHostAllowed === true ? "OK" : result.finalHostAllowed === false ? "fuori allowlist" : "—") +
+        (result.contentType ? " · " + result.contentType : "") +
+        (result.error ? " · " + result.error : ""),
+        result.ok && result.finalHostAllowed !== false ? "ok" : "error"
+      );
+    } catch (err) {
+      predictSourceMessage(err instanceof Error ? err.message : String(err), "error");
+    } finally {
+      $("probePredictSource").disabled = !$("predictSource").value;
+    }
+  });
   $("generateToday").addEventListener("click", async () => {
     hideGenerationMessage();
     $("generateToday").disabled = true;
