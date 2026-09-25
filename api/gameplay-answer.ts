@@ -14,13 +14,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const cardId = typeof req.body?.cardId === "string" ? req.body.cardId.trim() : "";
   const selectedOptionIndex = req.body?.selectedOptionIndex;
+  const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : "";
+  const position = req.body?.position;
   if (!cardId) return res.status(400).json({ error: "card_id_required" });
   if (!Number.isInteger(selectedOptionIndex) || selectedOptionIndex < 0) {
     return res.status(400).json({ error: "selected_option_index_required" });
   }
+  if (sessionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
+    return res.status(400).json({ error: "invalid_session_id" });
+  }
+  if (position !== undefined && (!Number.isInteger(position) || position < 0 || position > 99)) {
+    return res.status(400).json({ error: "invalid_position" });
+  }
 
   try {
-    const result = await new NeonContentStore().answerPublishedCard(cardId, selectedOptionIndex);
+    const result = await new NeonContentStore().answerPublishedCard(
+      cardId,
+      selectedOptionIndex,
+      sessionId ? { sessionId, position } : undefined
+    );
     if (!result) return res.status(404).json({ error: "answerable_published_card_not_found" });
     return res.status(200).json(result);
   } catch (error) {

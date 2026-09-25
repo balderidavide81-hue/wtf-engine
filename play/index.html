@@ -139,6 +139,7 @@
     </header>
     <div class="progressTrack" aria-hidden="true"><div id="progress" class="progressBar"></div></div>
     <div id="app" class="loading">Carico le cose più assurde che il mondo ha prodotto…</div>
+    <div class="tiny" style="text-align:center">Questa preview misura anonimamente la singola sessione di gioco. Nessun account o cookie di tracking.</div>
   </main>
 
   <script>
@@ -152,6 +153,11 @@
       answered: 0,
       result: null,
       predictedIndex: null,
+      predictions: 0,
+      sessionId: crypto.randomUUID(),
+      viewedCardIds: new Set(),
+      sessionStarted: false,
+      sessionCompleted: false,
       busy: false
     };
 
@@ -182,6 +188,40 @@
         .replaceAll("'","&#039;");
     }
 
+    function telemetry(eventType, extra={}) {
+      fetch("/api/gameplay-event", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        keepalive: true,
+        body: JSON.stringify({sessionId:state.sessionId,eventType,...extra})
+      }).catch(() => {});
+    }
+
+    function startSession() {
+      if (state.sessionStarted) return;
+      state.sessionStarted = true;
+      telemetry("session_started", {totalCards:state.cards.length});
+    }
+
+    function completeSession() {
+      if (state.sessionCompleted) return;
+      state.sessionCompleted = true;
+      telemetry("session_completed", {
+        totalCards: state.cards.length,
+        score: state.score,
+        answered: state.answered,
+        predictions: state.predictions
+      });
+    }
+
+    function resetSession() {
+      state.sessionId = crypto.randomUUID();
+      state.viewedCardIds = new Set();
+      state.sessionStarted = false;
+      state.sessionCompleted = false;
+      state.predictions = 0;
+    }
+
     function updateHeader() {
       $("score").textContent = state.score + " · " + state.answered;
       const done = state.cards.length ? state.index / state.cards.length : 0;
@@ -199,6 +239,7 @@
           $("app").textContent = "Nessuna card pubblicata.";
           return;
         }
+        startSession();
         render();
       } catch (error) {
         $("app").className = "empty";
@@ -224,6 +265,10 @@
 
       const card = state.cards[state.index];
       const isPredict = card.interactionType === "PREDICT";
+      if (!state.viewedCardIds.has(card.id)) {
+        state.viewedCardIds.add(card.id);
+        telemetry("card_viewed", {cardId:card.id,position:state.index});
+      }
       const visualStyle = card.imageUrl
         ? ' style="background-image:url(&quot;' + esc(card.imageUrl) + '&quot;)"'
         : "";
@@ -248,7 +293,7 @@
           <div class="answers">
             ${card.options.map((option,index) => `
               <button class="${optionClass(index)}" data-index="${index}"
-                ${state.result || state.busy ? "disabled" : ""}>
+                ${state.result || state.busy || (isPredict && state.predictedIndex !== null) ? "disabled" : ""}>
                 <span class="letter">${String.fromCharCode(65 + index)}</span>
                 <span>${esc(option)}</span>
               </button>
@@ -307,6 +352,12 @@
 
       if (card.interactionType === "PREDICT") {
         state.predictedIndex = index;
+        state.predictions += 1;
+        telemetry("predict_selected", {
+          cardId: card.id,
+          position: state.index,
+          selectedOptionIndex: index
+        });
         render();
         return;
       }
@@ -317,7 +368,12 @@
         const response = await fetch("/api/gameplay-answer", {
           method: "POST",
           headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({cardId: card.id, selectedOptionIndex:index})
+          body: JSON.stringify({
+            cardId: card.id,
+            selectedOptionIndex:index,
+            sessionId:state.sessionId,
+            position:state.index
+          })
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload?.message || payload?.error || "Risposta non disponibile");
@@ -342,6 +398,7 @@
     }
 
     function renderSummary() {
+      completeSession();
       $("progress").style.width = "100%";
       $("app").className = "card";
       $("app").innerHTML = `
@@ -355,15 +412,17 @@
           <div class="footerActions" style="justify-content:center">
             <button id="restart" class="primary">Rigioca</button>
           </div>
-          <div class="tiny">Preview v0.7.0 · dati reali dal feed WTF Engine</div>
+          <div class="tiny">Preview v0.7.2 · dati reali dal feed WTF Engine · telemetria anonima per singola sessione</div>
         </div>
       `;
       $("restart").addEventListener("click", () => {
+        resetSession();
         state.index = 0;
         state.score = 0;
         state.answered = 0;
         state.result = null;
         state.predictedIndex = null;
+        startSession();
         render();
       });
     }
