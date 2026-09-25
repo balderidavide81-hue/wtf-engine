@@ -1,6 +1,6 @@
 # Content Gate metrics — v0.6.24
 
-Status: source-only. Migration 003 is NOT applied to production.
+Status: ACTIVE in production. Migration 003 was validated on an isolated Neon branch and applied to WTF Engine `main` on 2026-09-25.
 
 ## Why this block exists
 
@@ -26,8 +26,10 @@ Recorded events:
 Events are written in the same database transaction as the editorial state change. Retry-safe edition
 transitions do not create a second event when the edition is already in the requested state.
 
-No historical events are invented. The 2026-09-23 first-edition audit remains the documented baseline;
-telemetry starts when migration 003 is actually applied.
+No historical events are invented. The 2026-09-23 first-edition audit remains the documented baseline.
+Editorial event telemetry is complete only for editions dated 2026-09-25 or later. Earlier editions may
+still expose reliable generation-run/cost data, but edit/review/reject counts are intentionally treated
+as incomplete rather than zero.
 
 ## Metrics contract
 
@@ -58,32 +60,29 @@ A practical daily record is:
 The important trend is the share of cards that can be published without repair, not raw generation
 volume. A day with many generated cards but many rejects/edits is weaker than a smaller clean edition.
 
-## Deployment order
+## Production activation
 
-Because store mutations begin writing `editorial_events`, the code must not reach production before the
-table exists.
+Completed on 2026-09-25:
 
-Required order:
+1. migration 003 prepared on isolated Neon branch `br-muddy-breeze-b1ysc4l5`;
+2. table, constraints, composite edition/card FK and indexes verified;
+3. valid `card_reviewed` insert accepted on the temporary branch;
+4. invalid scoped insert rejected;
+5. migration applied to WTF Engine production branch `br-withered-rain-b1ue18f6`;
+6. temporary branch deleted;
+7. production schema verified with zero fabricated historical events;
+8. telemetry code merged to `main` as commit `814f281`;
+9. Vercel production deployment reached READY;
+10. unauthenticated metrics endpoint smoke returned 401 with `Cache-Control: no-store`.
 
-1. validate migration 003 on PostgreSQL 18 / isolated Neon branch;
-2. apply migration 003 to WTF Engine production Neon;
-3. run source typecheck on the exact branch snapshot;
-4. merge v0.6.24 to `main`;
-5. confirm Vercel deployment READY;
-6. perform a read-only metrics smoke against an existing edition;
-7. use the next draft edition for the first write-path telemetry smoke.
-
-Until the Neon connector can address project `autumn-violet-57425012` reliably, stop after the
-source-only PR. Do not merge the instrumentation branch.
+The first real write-path telemetry evidence should come from an edition dated 2026-09-25 or later.
 
 
 ## Alignment with the live structural gate
 
-This branch was refreshed on top of current main after v0.6.28. It preserves the live deterministic audit,
-seven-day structural Content Gate, manual Daily Edition generation controls and manual PREDICT source
-health probe. Telemetry remains additive: after migration 003 is safely applied, the console will show
-a separate Content telemetry panel for edit/reject effort and generation cost without replacing the
-existing operational controls.
+Telemetry is additive to the deterministic single-edition audit and seven-day structural Content Gate.
+The structural PASS criteria do not change. The gate reports telemetry coverage separately and aggregates
+clean-kept/edit/reject/cost only for days whose editorial telemetry is complete.
 
-The branch must remain draft/unmerged until migration 003 has been validated and applied to production
-Neon.
+This prevents pre-activation editions from being misreported as "clean" merely because their historical
+editorial actions were never recorded.
