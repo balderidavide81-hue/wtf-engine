@@ -5,7 +5,7 @@ import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
 import { EDITOR_PROMPT_VERSION } from "../ai/editor.js";
 import type { ContentStore } from "./content-store.js";
-import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput, DraftCardEditInput, GameplayAnswerRecord } from "./types.js";
+import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput, DraftCardEditInput, GameplayAnswerRecord, ContentGateMetricsRecord } from "./types.js";
 import { evaluatePublishedAnswer } from "../gameplay/answer.js";
 
 function requireDatabaseUrl(): string {
@@ -286,6 +286,116 @@ export class NeonContentStore implements ContentStore {
     };
   }
 
+  async getContentGateMetrics(editionDate: string): Promise<ContentGateMetricsRecord | null> {
+    const summary = await this.pool.query(
+      `select de.id, de.status,
+              count(dec.card_id)::int as total_cards,
+              (count(dec.card_id) filter (where gc.lifecycle_status <> 'rejected'))::int as kept_cards,
+              (count(dec.card_id) filter (where gc.lifecycle_status = 'rejected'))::int as rejected_cards,
+              (count(dec.card_id) filter (where gc.lifecycle_status <> 'draft'))::int as decided_cards,
+              (count(dec.card_id) filter (where gc.mode = 'WTF'))::int as mode_wtf,
+              (count(dec.card_id) filter (where gc.mode = 'PREDICT'))::int as mode_predict,
+              (count(dec.card_id) filter (where gc.mode = 'STORY'))::int as mode_story,
+              (count(dec.card_id) filter (where gc.interaction_type = 'MULTIPLE_CHOICE'))::int as interaction_multiple_choice,
+              (count(dec.card_id) filter (where gc.interaction_type = 'TRUE_FALSE'))::int as interaction_true_false,
+              (count(dec.card_id) filter (where gc.interaction_type = 'PREDICT'))::int as interaction_predict
+         from daily_editions de
+         left join daily_edition_cards dec on dec.edition_id=de.id
+         left join game_cards gc on gc.id=dec.card_id
+        where de.edition_date=$1
+        group by de.id, de.status`,
+      [editionDate]
+    );
+    if (summary.rowCount === 0) return null;
+
+    const editionId = String(summary.rows[0].id);
+    const [lifecycle, events, runs] = await Promise.all([
+      this.pool.query(
+        `select gc.lifecycle_status, count(*)::int as count
+           from daily_edition_cards dec
+           join game_cards gc on gc.id=dec.card_id
+          where dec.edition_id=$1
+          group by gc.lifecycle_status`,
+        [editionId]
+      ),
+      this.pool.query(
+        `select
+            (count(*) filter (where ee.event_type='card_edited'))::int as edit_actions,
+            (count(distinct ee.card_id) filter (where ee.event_type='card_edited'))::int as edited_cards,
+            (count(distinct ee.card_id) filter (
+              where ee.event_type='card_edited' and gc.lifecycle_status <> 'rejected'
+            ))::int as edited_kept_cards,
+            (count(*) filter (where ee.event_type='card_reviewed'))::int as review_actions,
+            (count(*) filter (where ee.event_type='card_rejected'))::int as reject_actions,
+            min(ee.created_at) as first_event_at,
+            max(ee.created_at) as last_event_at
+           from editorial_events ee
+           left join game_cards gc on gc.id=ee.card_id
+          where ee.edition_id=$1`,
+        [editionId]
+      ),
+      this.pool.query(
+        `with run_ids as (
+            select distinct gc.run_id
+              from daily_edition_cards dec
+              join game_cards gc on gc.id=dec.card_id
+             where dec.edition_id=$1 and gc.run_id is not null
+          )
+          select count(*)::int as run_count,
+                 coalesce(sum(pr.estimated_cost_usd),0)::float8 as estimated_cost_usd
+            from run_ids
+            join pipeline_runs pr on pr.id=run_ids.run_id`,
+        [editionId]
+      )
+    ]);
+
+    const lifecycleCounts: Record<CardLifecycleStatus, number> = {
+      draft: 0,
+      reviewed: 0,
+      published: 0,
+      open: 0,
+      resolved: 0,
+      void: 0,
+      rejected: 0
+    };
+    for (const row of lifecycle.rows) {
+      lifecycleCounts[row.lifecycle_status as CardLifecycleStatus] = Number(row.count);
+    }
+
+    const row = summary.rows[0];
+    const eventRow = events.rows[0];
+    const runRow = runs.rows[0];
+    return {
+      editionDate,
+      editionStatus: row.status,
+      totalCards: Number(row.total_cards),
+      keptCards: Number(row.kept_cards),
+      rejectedCards: Number(row.rejected_cards),
+      decidedCards: Number(row.decided_cards),
+      editedCards: Number(eventRow.edited_cards),
+      editedKeptCards: Number(eventRow.edited_kept_cards),
+      cleanKeptCards: Math.max(0, Number(row.kept_cards) - Number(eventRow.edited_kept_cards)),
+      editActions: Number(eventRow.edit_actions),
+      reviewActions: Number(eventRow.review_actions),
+      rejectActions: Number(eventRow.reject_actions),
+      generationRunCount: Number(runRow.run_count),
+      estimatedGenerationCostUsd: Number(runRow.estimated_cost_usd),
+      firstEditorialEventAt: eventRow.first_event_at ? new Date(eventRow.first_event_at).toISOString() : null,
+      lastEditorialEventAt: eventRow.last_event_at ? new Date(eventRow.last_event_at).toISOString() : null,
+      lifecycle: lifecycleCounts,
+      modes: {
+        WTF: Number(row.mode_wtf),
+        PREDICT: Number(row.mode_predict),
+        STORY: Number(row.mode_story)
+      },
+      interactions: {
+        MULTIPLE_CHOICE: Number(row.interaction_multiple_choice),
+        TRUE_FALSE: Number(row.interaction_true_false),
+        PREDICT: Number(row.interaction_predict)
+      }
+    };
+  }
+
   async getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null> {
     const result = await this.pool.query(
       `select de.edition_date::text, gc.id, gc.mode, gc.interaction_type, gc.category,
@@ -355,15 +465,9 @@ export class NeonContentStore implements ContentStore {
         throw new Error(`Edition ${editionDate} is ${edition.rows[0].status} and card editing is frozen`);
       }
       const editionId = String(edition.rows[0].id);
-      const result = await client.query(
-        `update game_cards gc
-            set hook=$3,
-                question=$4,
-                options=$5::jsonb,
-                correct_option_index=$6,
-                reveal=$7,
-                resolution_rule=$8,
-                updated_at=now()
+      const currentResult = await client.query(
+        `select gc.hook, gc.question, gc.options, gc.correct_option_index, gc.reveal, gc.resolution_rule
+           from game_cards gc
           where gc.id=$2
             and gc.lifecycle_status='draft'
             and exists (
@@ -376,9 +480,36 @@ export class NeonContentStore implements ContentStore {
                 join daily_editions de on de.id=dec.edition_id
                where dec.card_id=gc.id and de.status <> 'draft'
             )
-          returning id`,
+          for update`,
+        [editionId, cardId]
+      );
+      if (currentResult.rowCount === 0) throw new Error(`Card ${cardId} cannot be edited`);
+
+      const current = currentResult.rows[0];
+      const changed =
+        current.hook !== input.hook
+        || current.question !== input.question
+        || JSON.stringify(current.options) !== JSON.stringify(input.options)
+        || current.correct_option_index !== input.correctOptionIndex
+        || current.reveal !== input.reveal
+        || current.resolution_rule !== input.resolutionRule;
+
+      if (!changed) {
+        await client.query("commit");
+        return;
+      }
+
+      await client.query(
+        `update game_cards
+            set hook=$2,
+                question=$3,
+                options=$4::jsonb,
+                correct_option_index=$5,
+                reveal=$6,
+                resolution_rule=$7,
+                updated_at=now()
+          where id=$1`,
         [
-          editionId,
           cardId,
           input.hook,
           input.question,
@@ -388,7 +519,7 @@ export class NeonContentStore implements ContentStore {
           input.resolutionRule
         ]
       );
-      if (result.rowCount === 0) throw new Error(`Card ${cardId} cannot be edited`);
+      await this.recordEditorialEvent(client, editionId, cardId, "card_edited");
       await client.query("commit");
     } catch (error) {
       await client.query("rollback");
@@ -415,9 +546,9 @@ export class NeonContentStore implements ContentStore {
         throw new Error(`Edition ${editionDate} is ${edition.rows[0].status} and card review is frozen`);
       }
       const editionId = String(edition.rows[0].id);
-      const result = await client.query(
-        `update game_cards gc
-            set lifecycle_status=$3, updated_at=now()
+      const currentResult = await client.query(
+        `select gc.lifecycle_status
+           from game_cards gc
           where gc.id=$2
             and gc.lifecycle_status in ('draft','reviewed','rejected')
             and exists (
@@ -430,10 +561,27 @@ export class NeonContentStore implements ContentStore {
                 join daily_editions de on de.id=dec.edition_id
                where dec.card_id=gc.id and de.status <> 'draft'
             )
-          returning id`,
-        [editionId, cardId, status]
+          for update`,
+        [editionId, cardId]
       );
-      if (result.rowCount === 0) throw new Error(`Card ${cardId} cannot be moved to ${status}`);
+      if (currentResult.rowCount === 0) {
+        throw new Error(`Card ${cardId} cannot be moved to ${status}`);
+      }
+      if (currentResult.rows[0].lifecycle_status === status) {
+        await client.query("commit");
+        return;
+      }
+
+      await client.query(
+        "update game_cards set lifecycle_status=$2, updated_at=now() where id=$1",
+        [cardId, status]
+      );
+      await this.recordEditorialEvent(
+        client,
+        editionId,
+        cardId,
+        status === "reviewed" ? "card_reviewed" : "card_rejected"
+      );
       await client.query("commit");
     } catch (error) {
       await client.query("rollback");
@@ -512,6 +660,12 @@ export class NeonContentStore implements ContentStore {
             set status=$2, published_at=case when $2='published' then now() else published_at end
           where id=$1`,
         [editionId, status]
+      );
+      await this.recordEditorialEvent(
+        client,
+        editionId,
+        null,
+        status === "reviewed" ? "edition_reviewed" : "edition_published"
       );
       const cards = await client.query(
         "select card_id from daily_edition_cards where edition_id=$1 order by position",
@@ -690,6 +844,19 @@ export class NeonContentStore implements ContentStore {
       [cardId, input.reason.trim(), evidenceUrl]
     );
     if (result.rowCount === 0) throw new Error(`Prediction ${cardId} is not open`);
+  }
+
+  private async recordEditorialEvent(
+    client: PoolClient,
+    editionId: string,
+    cardId: string | null,
+    eventType: "card_edited" | "card_reviewed" | "card_rejected" | "edition_reviewed" | "edition_published"
+  ): Promise<void> {
+    await client.query(
+      `insert into editorial_events (edition_id, card_id, event_type)
+       values ($1,$2,$3)`,
+      [editionId, cardId, eventType]
+    );
   }
 
   private async upsertArticle(client: PoolClient, candidate: ArticleCandidate): Promise<string> {

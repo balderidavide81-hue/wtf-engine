@@ -112,6 +112,11 @@
   </section>
   <section id="auditIssues" class="grid"></section>
 
+  <section id="telemetry" class="panel statusbar hidden">
+    <strong>Content telemetry</strong>
+    <span id="telemetrySummary" class="muted small"></span>
+  </section>
+
   <section id="gate" class="panel statusbar hidden">
     <strong>Content Gate · 7 giorni</strong>
     <span id="gateSummary" class="muted small"></span>
@@ -125,7 +130,7 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  const state = { edition: null, audit: null, gate: null, predictSources: [], token: "" };
+  const state = { edition: null, audit: null, gate: null, metrics: null, predictSources: [], token: "" };
   const today = new Date();
   $("date").value = [
     today.getFullYear(),
@@ -250,6 +255,22 @@
     return payload;
   }
 
+  async function loadMetrics() {
+    const date = $("date").value;
+    const response = await fetch("/api/editorial-metrics?date=" + encodeURIComponent(date), {
+      method: "GET",
+      headers: { "Authorization": "Bearer " + state.token }
+    });
+    if (response.status === 404) return null;
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = payload?.message || payload?.error || ("HTTP " + response.status);
+      throw new Error(detail);
+    }
+    return payload;
+  }
+
   async function loadGate() {
     state.token = $("token").value.trim();
     if (!state.token) throw new Error("Inserisci EDITORIAL_API_TOKEN.");
@@ -322,11 +343,18 @@
         console.warn("editorial_audit_unavailable", auditError);
         state.audit = null;
       }
+      try {
+        state.metrics = await loadMetrics();
+      } catch (metricsError) {
+        console.warn("content_gate_metrics_unavailable", metricsError);
+        state.metrics = null;
+      }
       render();
       if (showSuccess) message("Edizione ricaricata.", "ok");
     } catch (err) {
       state.edition = null;
       state.audit = null;
+      state.metrics = null;
       render();
       message(err instanceof Error ? err.message : String(err), "error");
     } finally {
@@ -447,6 +475,8 @@
       $("summary").classList.add("hidden");
       $("audit").classList.add("hidden");
       $("auditIssues").innerHTML = "";
+      $("telemetry").classList.add("hidden");
+      $("telemetrySummary").textContent = "";
       $("cards").innerHTML = "";
       return;
     }
@@ -476,6 +506,23 @@
     } else {
       $("audit").classList.add("hidden");
       $("auditIssues").innerHTML = "";
+    }
+
+    if (state.metrics) {
+      const m = state.metrics;
+      const coverage = m.totalCards > 0 ? Math.round((m.decidedCards / m.totalCards) * 100) : 0;
+      $("telemetry").classList.remove("hidden");
+      $("telemetrySummary").textContent =
+        "decisioni " + m.decidedCards + "/" + m.totalCards + " (" + coverage + "%)" +
+        " · pulite " + m.cleanKeptCards + "/" + m.keptCards +
+        " · editate " + m.editedCards +
+        " · edit actions " + m.editActions +
+        " · scartate " + m.rejectedCards +
+        " · run " + m.generationRunCount +
+        " · costo stimato $" + Number(m.estimatedGenerationCostUsd).toFixed(5);
+    } else {
+      $("telemetry").classList.add("hidden");
+      $("telemetrySummary").textContent = "";
     }
 
     $("reviewEdition").disabled = !canReviewEdition();
