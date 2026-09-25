@@ -76,6 +76,7 @@
     <div class="actions">
       <button id="reviewEdition" class="good">Chiudi review edizione</button>
       <button id="publishEdition" class="warn">Pubblica edizione</button>
+      <button id="loadGate" class="secondary">Gate 7 giorni</button>
       <button id="reload" class="secondary">Ricarica</button>
     </div>
   </section>
@@ -86,6 +87,12 @@
   </section>
   <section id="auditIssues" class="grid"></section>
 
+  <section id="gate" class="panel statusbar hidden">
+    <strong>Content Gate · 7 giorni</strong>
+    <span id="gateSummary" class="muted small"></span>
+  </section>
+  <section id="gateDays" class="grid"></section>
+
   <section id="cards" class="grid"></section>
 </main>
 
@@ -93,7 +100,7 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  const state = { edition: null, audit: null, token: "" };
+  const state = { edition: null, audit: null, gate: null, token: "" };
   const today = new Date();
   $("date").value = [
     today.getFullYear(),
@@ -150,8 +157,69 @@
     return payload;
   }
 
+  async function loadGate() {
+    state.token = $("token").value.trim();
+    if (!state.token) throw new Error("Inserisci EDITORIAL_API_TOKEN.");
+    const through = $("date").value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(through)) throw new Error("Data edizione non valida.");
+
+    const response = await fetch(
+      "/api/editorial-gate?through=" + encodeURIComponent(through) + "&days=7&minActive=5",
+      {
+        method: "GET",
+        headers: { "Authorization": "Bearer " + state.token }
+      }
+    );
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = payload?.message || payload?.error || ("HTTP " + response.status);
+      throw new Error(detail);
+    }
+    state.gate = payload;
+    renderGate();
+  }
+
+  function renderGate() {
+    const gate = state.gate;
+    if (!gate) {
+      $("gate").classList.add("hidden");
+      $("gateDays").innerHTML = "";
+      return;
+    }
+
+    $("gate").classList.remove("hidden");
+    $("gateSummary").textContent =
+      (gate.gatePass ? "PASS STRUTTURALE" : "NON ANCORA") +
+      " · edizioni " + gate.editionsFound + "/" + gate.daysRequested +
+      " · giorni strutturalmente PASS " + gate.structuralPassDays + "/" + gate.daysRequested +
+      " · giorni con almeno " + gate.minActiveCards + " card " +
+      gate.minimumVolumePassDays + "/" + gate.daysRequested +
+      " · errori " + gate.errorCount +
+      " · warning " + gate.warningCount;
+
+    $("gateDays").innerHTML = gate.days.map(day => `
+      <div class="notice ${day.available && !day.structuralPass ? "error" : ""}">
+        <strong>${escapeHtml(day.date)}</strong>
+        <span class="pill right">${day.available ? escapeHtml(day.editionStatus) : "mancante"}</span>
+        <div style="margin-top:6px">
+          ${day.available
+            ? (
+              (day.dayPass ? "PASS" : "da completare") +
+              " · card attive " + day.activeCards +
+              " · errori " + day.errorCount +
+              " · warning " + day.warningCount
+            )
+            : "Nessuna edizione registrata per questa data."}
+        </div>
+      </div>
+    `).join("");
+  }
+
   async function loadEdition(showSuccess=false) {
     hideMessage();
+    state.gate = null;
+    renderGate();
     $("load").disabled = true;
     try {
       state.edition = await api("GET");
@@ -392,6 +460,20 @@
   });
 
   $("load").addEventListener("click", () => loadEdition(true));
+  $("loadGate").addEventListener("click", async () => {
+    hideMessage();
+    $("loadGate").disabled = true;
+    try {
+      await loadGate();
+      message("Content Gate 7 giorni caricato.", "ok");
+    } catch (err) {
+      state.gate = null;
+      renderGate();
+      message(err instanceof Error ? err.message : String(err), "error");
+    } finally {
+      $("loadGate").disabled = false;
+    }
+  });
   $("reload").addEventListener("click", () => loadEdition(true));
   $("clear").addEventListener("click", () => { state.token=""; $("token").value=""; message("Token rimosso dalla pagina."); });
   $("reviewEdition").addEventListener("click", async () => {
