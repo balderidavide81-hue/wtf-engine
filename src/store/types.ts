@@ -167,6 +167,17 @@ export interface GameplayMetricsRecord {
   answerAccuracy: number | null;
   predictSelections: number;
   averageCardsViewedPerStartedSession: number | null;
+  cards: Array<{
+    cardId: string;
+    hook: string;
+    mode: "WTF" | "PREDICT" | "STORY";
+    interactionType: InteractionType;
+    views: number;
+    answers: number;
+    correctAnswers: number;
+    answerAccuracy: number | null;
+    predictSelections: number;
+  }>;
   recentSessions: Array<{
     sessionKey: string;
     startedAt: string | null;
