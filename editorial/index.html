@@ -264,7 +264,7 @@
     state.token = $("token").value.trim();
     if (!state.token) throw new Error("Inserisci EDITORIAL_API_TOKEN.");
     const hours = $("gameplayHours").value;
-    const response = await fetch("/api/gameplay-metrics?hours=" + encodeURIComponent(hours), {
+    const response = await fetch("/api/editorial-metrics?scope=gameplay&hours=" + encodeURIComponent(hours), {
       method: "GET",
       headers: { "Authorization": "Bearer " + state.token }
     });

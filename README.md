@@ -61,7 +61,7 @@ answer APIs, keeps PREDICT unresolved, and exposes sources only as part of the g
 ## Gameplay telemetry
 
 v0.7.2 adds source-only anonymous per-session gameplay telemetry. After migration 004 is activated,
-`POST /api/gameplay-event` records non-answer play events and the existing answer endpoint can attach
+the existing `POST /api/gameplay-answer` endpoint also accepts non-answer telemetry events and attaches
 server-computed answer telemetry. Editorial operators can inspect aggregate results through authenticated
-`GET /api/gameplay-metrics?hours=24`. No account, cookie, IP address or device fingerprint is
+`GET /api/editorial-metrics?scope=gameplay&hours=24`. No account, cookie, IP address or device fingerprint is
 intentionally persisted by this telemetry layer.
