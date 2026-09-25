@@ -43,13 +43,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const store = new NeonContentStore();
     const dates = contentGateDates(throughDate, days);
-    const editions = await Promise.all(dates.map(date => store.getEditorialEdition(date)));
+    const [editions, metrics] = await Promise.all([
+      Promise.all(dates.map(date => store.getEditorialEdition(date))),
+      Promise.all(dates.map(date => store.getContentGateMetrics(date)))
+    ]);
     const audits = editions.flatMap(edition =>
       edition ? [auditEditorialEdition(edition)] : []
     );
+    const metricReports = metrics.flatMap(report => report ? [report] : []);
 
     return res.status(200).json(
-      buildContentGateReport(throughDate, days, minActiveCards, audits)
+      buildContentGateReport(throughDate, days, minActiveCards, audits, metricReports)
     );
   } catch (error) {
     console.error("content_gate_failed", error);
