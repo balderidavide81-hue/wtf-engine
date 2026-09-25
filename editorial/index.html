@@ -51,7 +51,7 @@
       <h1>WTF Engine · Editorial Console</h1>
       <div class="muted">Review, correzione e pubblicazione delle Daily Edition. Il token resta solo in memoria nella pagina.</div>
     </div>
-    <span class="pill">v0.6.23 source-only</span>
+    <span class="pill">v0.6 editorial ops</span>
   </div>
 
   <section class="panel toolbar">
@@ -67,6 +67,17 @@
     </div>
   </section>
 
+  <section class="panel toolbar" style="grid-template-columns:minmax(240px,1fr) auto">
+    <label>GENERATION_API_TOKEN
+      <input id="generationToken" type="password" autocomplete="off" placeholder="Bearer token · solo per generazione manuale">
+    </label>
+    <div style="align-self:end;display:flex;gap:8px">
+      <button id="generateToday" class="warn" type="button">Genera edizione di oggi</button>
+      <button id="clearGeneration" class="secondary" type="button">Pulisci token generazione</button>
+    </div>
+  </section>
+
+  <div id="generationResult" class="notice hidden" role="status"></div>
   <div id="message" class="notice hidden" role="status"></div>
 
   <section id="summary" class="panel statusbar hidden">
@@ -118,6 +129,12 @@
     el.className = "notice" + (kind ? " " + kind : "");
   }
   function hideMessage(){ $("message").className = "notice hidden"; }
+  function generationMessage(text, kind="") {
+    const el = $("generationResult");
+    el.textContent = text;
+    el.className = "notice" + (kind ? " " + kind : "");
+  }
+  function hideGenerationMessage(){ $("generationResult").className = "notice hidden"; }
 
   async function api(method, body) {
     state.token = $("token").value.trim();
@@ -131,6 +148,29 @@
         ...(body ? {"Content-Type":"application/json"} : {})
       },
       ...(body ? {body: JSON.stringify(body)} : {})
+    });
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = payload?.message || payload?.error || ("HTTP " + response.status);
+      throw new Error(detail);
+    }
+    return payload;
+  }
+
+  async function runDailyGeneration() {
+    const token = $("generationToken").value.trim();
+    if (!token) throw new Error("Inserisci GENERATION_API_TOKEN.");
+    if (!confirm(
+      "Avviare Scout + Editor per l’edizione di oggi? " +
+      "Questa operazione può usare API a pagamento e, se l’edizione è ancora draft, può aggiungere nuove card."
+    )) {
+      return null;
+    }
+
+    const response = await fetch("/api/daily?limit=30", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + token }
     });
     let payload = null;
     try { payload = await response.json(); } catch {}
@@ -460,6 +500,43 @@
   });
 
   $("load").addEventListener("click", () => loadEdition(true));
+  $("generateToday").addEventListener("click", async () => {
+    hideGenerationMessage();
+    $("generateToday").disabled = true;
+    try {
+      const report = await runDailyGeneration();
+      if (!report) return;
+
+      const cost = Number(report.ai?.totalEstimatedCostUsd ?? 0);
+      const editionDate = report.persistence?.editionDate ?? null;
+      const newCards = Array.isArray(report.persistence?.newCardIds)
+        ? report.persistence.newCardIds.length
+        : Number(report.edited ?? 0);
+      const editionCards = Array.isArray(report.persistence?.editionCardIds)
+        ? report.persistence.editionCardIds.length
+        : null;
+
+      generationMessage(
+        "Generazione completata" +
+        (editionDate ? " · " + editionDate : "") +
+        " · Scout " + Number(report.scouted ?? 0) +
+        " · Editor " + Number(report.edited ?? 0) +
+        " · nuove card " + newCards +
+        (editionCards === null ? "" : " · card edizione " + editionCards) +
+        " · costo stimato $" + cost.toFixed(5),
+        "ok"
+      );
+
+      if (editionDate) $("date").value = editionDate;
+      if ($("token").value.trim() && editionDate) {
+        await loadEdition(false);
+      }
+    } catch (err) {
+      generationMessage(err instanceof Error ? err.message : String(err), "error");
+    } finally {
+      $("generateToday").disabled = false;
+    }
+  });
   $("loadGate").addEventListener("click", async () => {
     hideMessage();
     $("loadGate").disabled = true;
@@ -475,7 +552,11 @@
     }
   });
   $("reload").addEventListener("click", () => loadEdition(true));
-  $("clear").addEventListener("click", () => { state.token=""; $("token").value=""; message("Token rimosso dalla pagina."); });
+  $("clear").addEventListener("click", () => { state.token=""; $("token").value=""; message("Token editoriale rimosso dalla pagina."); });
+  $("clearGeneration").addEventListener("click", () => {
+    $("generationToken").value="";
+    generationMessage("Token generazione rimosso dalla pagina.");
+  });
   $("reviewEdition").addEventListener("click", async () => {
     if (!confirm("Chiudere la review? Dopo questo passaggio le card non saranno più modificabili.")) return;
     await mutate({action:"review_edition"},"Edizione spostata a reviewed.");
