@@ -25,7 +25,8 @@ Current v0.6 capabilities:
 - RSS image metadata with an explicit media-rights gate;
 - card category + interaction type (multiple choice / true-false / predict);
 - Italian player-facing Editor output by default;
-- public chronological `/api/feed` contract for future multi-refresh/day operation.
+- public chronological `/api/feed` contract for future multi-refresh/day operation;
+- source-only structured PREDICT resolution contracts and official-source registry, with automation still disabled.
 
 Third-party image binaries are never stored in Neon. Public image URLs are emitted only after media
 usage is approved.
