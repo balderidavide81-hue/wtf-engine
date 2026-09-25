@@ -44,3 +44,6 @@ usage is approved.
 
 The v0.6 schema migration was validated on PostgreSQL 18, prepared on a temporary Neon branch,
 verified there and applied to the production Neon main branch before the v0.6 source merge.
+
+
+Manual editorial operations: the internal console can trigger the authenticated daily-generation endpoint explicitly; no cron is configured.
