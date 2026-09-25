@@ -2,17 +2,22 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { buildDailyQueue } from "../src/pipeline/daily.js";
 import { NeonContentStore } from "../src/store/neon-content-store.js";
 import { hasBearerSecret } from "../src/auth/bearer.js";
+import { isGitHubDailyWorkflowAuthorized } from "../src/auth/github-oidc.js";
 import { SCOUT_BATCH_LIMIT } from "../src/ai/scout.js";
 import { DAILY_GENERATION_LEASE_KEY, DAILY_GENERATION_LEASE_TTL_SECONDS } from "../src/store/lease-constants.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
-  if (!hasBearerSecret(req, process.env.GENERATION_API_TOKEN)) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "method_not_allowed" });
+  }
+
+  const authorized =
+    hasBearerSecret(req, process.env.GENERATION_API_TOKEN)
+    || await isGitHubDailyWorkflowAuthorized(req);
+  if (!authorized) {
+    return res.status(401).json({ error: "unauthorized" });
   }
 
   const requested = Number(req.query.limit ?? SCOUT_BATCH_LIMIT);

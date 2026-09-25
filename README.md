@@ -73,3 +73,11 @@ The public Play Preview now plays only the latest published edition and classifi
 fresh, repeat or unknown. The browser stores only previously seen edition dates locally; no persistent user
 identifier is created. Editorial gameplay metrics expose first-exposure accuracy separately from replay
 accuracy so repeated play does not distort difficulty assessment.
+
+
+### GitHub OIDC manual generation
+
+v0.7.4 adds a secretless manual GitHub Actions path for production Daily Edition generation. The workflow
+uses a short-lived GitHub OIDC token and `/api/daily` verifies the GitHub signature plus repository ID,
+main ref, workflow ref and `workflow_dispatch` event before accepting the request. The existing
+`GENERATION_API_TOKEN` remains supported.
