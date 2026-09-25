@@ -11,7 +11,10 @@ import type {
   PredictionVoidInput,
   DraftCardEditInput,
   GameplayAnswerRecord,
-  ContentGateMetricsRecord
+  ContentGateMetricsRecord,
+  GameplayTelemetryEventInput,
+  GameplayAnswerTelemetryInput,
+  GameplayMetricsRecord
 } from "./types.js";
 
 export interface ContentStore {
@@ -32,7 +35,13 @@ export interface ContentStore {
   getContentGateMetrics(editionDate: string): Promise<ContentGateMetricsRecord | null>;
   getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null>;
   getPublishedFeed(limit: number, before?: string): Promise<PublicFeedRecord>;
-  answerPublishedCard(cardId: string, selectedOptionIndex: number): Promise<GameplayAnswerRecord | null>;
+  answerPublishedCard(
+    cardId: string,
+    selectedOptionIndex: number,
+    telemetry?: GameplayAnswerTelemetryInput
+  ): Promise<GameplayAnswerRecord | null>;
+  recordGameplayEvent(input: GameplayTelemetryEventInput): Promise<void>;
+  getGameplayMetrics(hours: number): Promise<GameplayMetricsRecord>;
 
   updateDraftCard(
     editionDate: string,
