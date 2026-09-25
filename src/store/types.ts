@@ -130,3 +130,51 @@ export interface PredictionVoidInput {
   reason: string;
   evidenceUrl?: string;
 }
+
+
+export type GameplayTelemetryEventType =
+  | "session_started"
+  | "card_viewed"
+  | "predict_selected"
+  | "session_completed";
+
+export interface GameplayTelemetryEventInput {
+  sessionId: string;
+  eventType: GameplayTelemetryEventType;
+  cardId?: string;
+  position?: number;
+  selectedOptionIndex?: number;
+  totalCards?: number;
+  score?: number;
+  answered?: number;
+  predictions?: number;
+}
+
+export interface GameplayAnswerTelemetryInput {
+  sessionId: string;
+  position?: number;
+}
+
+export interface GameplayMetricsRecord {
+  since: string;
+  sessionsStarted: number;
+  sessionsCompleted: number;
+  completionRate: number | null;
+  cardsViewed: number;
+  uniqueCardsViewed: number;
+  answers: number;
+  correctAnswers: number;
+  answerAccuracy: number | null;
+  predictSelections: number;
+  averageCardsViewedPerStartedSession: number | null;
+  recentSessions: Array<{
+    sessionKey: string;
+    startedAt: string | null;
+    completedAt: string | null;
+    cardsViewed: number;
+    answers: number;
+    correctAnswers: number;
+    predictions: number;
+    maxPosition: number | null;
+  }>;
+}
