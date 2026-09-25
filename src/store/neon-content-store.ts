@@ -5,7 +5,7 @@ import { canonicalizeHttpUrl } from "../domain/url.js";
 import { SCOUT_PROMPT_VERSION } from "../ai/scout.js";
 import { EDITOR_PROMPT_VERSION } from "../ai/editor.js";
 import type { ContentStore } from "./content-store.js";
-import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput, DraftCardEditInput, GameplayAnswerRecord, ContentGateMetricsRecord } from "./types.js";
+import type { DailyEditionRecord, PersistedPipelineRun, EditorialEditionRecord, CardLifecycleStatus, EditionStatus, PublicEditionRecord, PublicFeedRecord, PublicGameCardRecord, PredictionResolutionInput, PredictionVoidInput, DraftCardEditInput, GameplayAnswerRecord, ContentGateMetricsRecord, GameplayTelemetryEventInput, GameplayAnswerTelemetryInput, GameplayMetricsRecord } from "./types.js";
 import { evaluatePublishedAnswer } from "../gameplay/answer.js";
 
 function requireDatabaseUrl(): string {
@@ -744,7 +744,8 @@ export class NeonContentStore implements ContentStore {
 
   async answerPublishedCard(
     cardId: string,
-    selectedOptionIndex: number
+    selectedOptionIndex: number,
+    telemetry?: GameplayAnswerTelemetryInput
   ): Promise<GameplayAnswerRecord | null> {
     const result = await this.pool.query(
       `select id, options, correct_option_index, reveal
@@ -761,7 +762,8 @@ export class NeonContentStore implements ContentStore {
     if (!Array.isArray(row.options) || row.correct_option_index === null) {
       return null;
     }
-    return evaluatePublishedAnswer(
+
+    const answer = evaluatePublishedAnswer(
       {
         id: String(row.id),
         options: row.options.map((option: unknown) => String(option)),
@@ -770,6 +772,163 @@ export class NeonContentStore implements ContentStore {
       },
       selectedOptionIndex
     );
+
+    if (telemetry) {
+      await this.pool.query(
+        `insert into gameplay_events
+           (session_id, event_key, event_type, card_id, position, selected_option_index, correct)
+         values ($1, $2, 'card_answered', $3, $4, $5, $6)
+         on conflict (session_id, event_key) do nothing`,
+        [
+          telemetry.sessionId,
+          `answer:${cardId}`,
+          cardId,
+          telemetry.position ?? null,
+          selectedOptionIndex,
+          answer.correct
+        ]
+      );
+    }
+
+    return answer;
+  }
+
+  async recordGameplayEvent(input: GameplayTelemetryEventInput): Promise<void> {
+    const position = input.position ?? null;
+    let eventKey: string;
+    let cardId: string | null = null;
+    let selectedOptionIndex: number | null = null;
+    let details: Record<string, number> = {};
+
+    if (input.eventType === "session_started") {
+      eventKey = "start";
+      if (input.totalCards !== undefined) details.totalCards = input.totalCards;
+    } else if (input.eventType === "session_completed") {
+      eventKey = "complete";
+      if (input.totalCards !== undefined) details.totalCards = input.totalCards;
+      if (input.score !== undefined) details.score = input.score;
+      if (input.answered !== undefined) details.answered = input.answered;
+      if (input.predictions !== undefined) details.predictions = input.predictions;
+    } else {
+      if (!input.cardId) throw new Error(`${input.eventType} requires cardId`);
+      cardId = input.cardId;
+
+      const card = await this.pool.query(
+        `select mode, lifecycle_status, jsonb_array_length(options) as option_count
+           from game_cards
+          where id=$1
+            and published_at is not null
+            and lifecycle_status in ('published','open','resolved','void')`,
+        [cardId]
+      );
+      if (card.rowCount === 0) throw new Error(`Public card ${cardId} not found`);
+
+      if (input.eventType === "card_viewed") {
+        eventKey = `view:${cardId}`;
+      } else {
+        if (
+          card.rows[0].mode !== "PREDICT"
+          || card.rows[0].lifecycle_status !== "open"
+        ) {
+          throw new Error(`Prediction ${cardId} is not open`);
+        }
+        if (
+          input.selectedOptionIndex === undefined
+          || !Number.isInteger(input.selectedOptionIndex)
+          || input.selectedOptionIndex < 0
+          || input.selectedOptionIndex >= Number(card.rows[0].option_count)
+        ) {
+          throw new RangeError("Prediction selectedOptionIndex is invalid");
+        }
+        eventKey = `predict:${cardId}`;
+        selectedOptionIndex = input.selectedOptionIndex;
+      }
+    }
+
+    await this.pool.query(
+      `insert into gameplay_events
+         (session_id, event_key, event_type, card_id, position, selected_option_index, details)
+       values ($1,$2,$3,$4,$5,$6,$7::jsonb)
+       on conflict (session_id, event_key) do nothing`,
+      [
+        input.sessionId,
+        eventKey,
+        input.eventType,
+        cardId,
+        position,
+        selectedOptionIndex,
+        JSON.stringify(details)
+      ]
+    );
+  }
+
+  async getGameplayMetrics(hours: number): Promise<GameplayMetricsRecord> {
+    const boundedHours = Math.max(1, Math.min(Math.trunc(hours), 168));
+    const summary = await this.pool.query(
+      `select
+          min(created_at) as first_event_at,
+          (count(distinct session_id) filter (where event_type='session_started'))::int as sessions_started,
+          (count(distinct session_id) filter (where event_type='session_completed'))::int as sessions_completed,
+          (count(*) filter (where event_type='card_viewed'))::int as cards_viewed,
+          (count(distinct card_id) filter (where event_type='card_viewed'))::int as unique_cards_viewed,
+          (count(*) filter (where event_type='card_answered'))::int as answers,
+          (count(*) filter (where event_type='card_answered' and correct is true))::int as correct_answers,
+          (count(*) filter (where event_type='predict_selected'))::int as predict_selections
+         from gameplay_events
+        where created_at >= now() - make_interval(hours => $1)`,
+      [boundedHours]
+    );
+
+    const recent = await this.pool.query(
+      `select
+          left(replace(session_id::text, '-', ''), 8) as session_key,
+          min(created_at) filter (where event_type='session_started') as started_at,
+          max(created_at) filter (where event_type='session_completed') as completed_at,
+          (count(*) filter (where event_type='card_viewed'))::int as cards_viewed,
+          (count(*) filter (where event_type='card_answered'))::int as answers,
+          (count(*) filter (where event_type='card_answered' and correct is true))::int as correct_answers,
+          (count(*) filter (where event_type='predict_selected'))::int as predictions,
+          max(position) filter (where position is not null) as max_position,
+          min(created_at) as first_event_at
+         from gameplay_events
+        where created_at >= now() - make_interval(hours => $1)
+        group by session_id
+        order by first_event_at desc
+        limit 20`,
+      [boundedHours]
+    );
+
+    const row = summary.rows[0];
+    const sessionsStarted = Number(row.sessions_started);
+    const sessionsCompleted = Number(row.sessions_completed);
+    const cardsViewed = Number(row.cards_viewed);
+    const answers = Number(row.answers);
+    const correctAnswers = Number(row.correct_answers);
+
+    return {
+      since: new Date(Date.now() - boundedHours * 60 * 60 * 1000).toISOString(),
+      sessionsStarted,
+      sessionsCompleted,
+      completionRate: sessionsStarted > 0 ? sessionsCompleted / sessionsStarted : null,
+      cardsViewed,
+      uniqueCardsViewed: Number(row.unique_cards_viewed),
+      answers,
+      correctAnswers,
+      answerAccuracy: answers > 0 ? correctAnswers / answers : null,
+      predictSelections: Number(row.predict_selections),
+      averageCardsViewedPerStartedSession:
+        sessionsStarted > 0 ? cardsViewed / sessionsStarted : null,
+      recentSessions: recent.rows.map(session => ({
+        sessionKey: String(session.session_key),
+        startedAt: session.started_at ? new Date(session.started_at).toISOString() : null,
+        completedAt: session.completed_at ? new Date(session.completed_at).toISOString() : null,
+        cardsViewed: Number(session.cards_viewed),
+        answers: Number(session.answers),
+        correctAnswers: Number(session.correct_answers),
+        predictions: Number(session.predictions),
+        maxPosition: session.max_position === null ? null : Number(session.max_position)
+      }))
+    };
   }
 
   async setArticleMediaUsage(
