@@ -20,7 +20,7 @@ export interface EditorBatch {
   usage: AiUsageDiagnostics;
 }
 
-export const EDITOR_PROMPT_VERSION = "editor/inline-v0.8-final-hardening";
+export const EDITOR_PROMPT_VERSION = "editor/inline-v0.9-playability-payoff";
 export const EDITOR_BATCH_LIMIT = 12;
 export const EDITOR_MAX_OUTPUT_TOKENS = 6_000;
 
@@ -51,6 +51,15 @@ When the question asks what, which or who, do not paraphrase the correct answer 
 Do not add evaluative factual adjectives such as popular, famous, iconic, legendary or equivalent target-language wording unless that characterization is explicitly present in the supplied title or summary.
 The reveal must stay inside the supplied evidence. Do not add unit conversions, arithmetic, inferred quantities or extra factual claims that are not explicitly supplied.
 Distractor options may be invented for gameplay, but must be plausible, distinct and must never be stated as facts in the reveal.
+
+Playability:
+- make the hook and question work as setup -> payoff, not as a dry fact recall exercise;
+- prefer asking about the bizarre action, object, identity, place, consequence or outcome at the heart of the story;
+- avoid arbitrary numeric recall such as routine percentages, distances, dates or counts when a more human or visual question is supported by the evidence;
+- numeric questions are appropriate when the number itself is the central absurdity or scale of the story, especially records and extreme measurements;
+- the reveal should reward the click with the supplied surprising fact or context, not merely repeat the correct option in sentence form;
+- favor cards a player could easily retell to another person after playing them;
+- do not force a weak candidate into fake humor. Keep copy concise and let the underlying fact carry the surprise.
 
 WTF cards:
 - choose TRUE_FALSE only for one crisp, surprising, unambiguous claim that is not simply repeated by the hook;
