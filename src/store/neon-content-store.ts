@@ -879,6 +879,25 @@ export class NeonContentStore implements ContentStore {
       [boundedHours]
     );
 
+    const cardMetrics = await this.pool.query(
+      `select
+          ge.card_id,
+          gc.hook,
+          gc.mode,
+          gc.interaction_type,
+          (count(*) filter (where ge.event_type='card_viewed'))::int as views,
+          (count(*) filter (where ge.event_type='card_answered'))::int as answers,
+          (count(*) filter (where ge.event_type='card_answered' and ge.correct is true))::int as correct_answers,
+          (count(*) filter (where ge.event_type='predict_selected'))::int as predict_selections
+         from gameplay_events ge
+         join game_cards gc on gc.id=ge.card_id
+        where ge.created_at >= now() - make_interval(hours => $1)
+          and ge.card_id is not null
+        group by ge.card_id, gc.hook, gc.mode, gc.interaction_type
+        order by views desc, answers desc, ge.card_id`,
+      [boundedHours]
+    );
+
     const recent = await this.pool.query(
       `select
           left(replace(session_id::text, '-', ''), 8) as session_key,
@@ -918,6 +937,21 @@ export class NeonContentStore implements ContentStore {
       predictSelections: Number(row.predict_selections),
       averageCardsViewedPerStartedSession:
         sessionsStarted > 0 ? cardsViewed / sessionsStarted : null,
+      cards: cardMetrics.rows.map(card => {
+        const cardAnswers = Number(card.answers);
+        const cardCorrect = Number(card.correct_answers);
+        return {
+          cardId: String(card.card_id),
+          hook: String(card.hook),
+          mode: card.mode,
+          interactionType: card.interaction_type,
+          views: Number(card.views),
+          answers: cardAnswers,
+          correctAnswers: cardCorrect,
+          answerAccuracy: cardAnswers > 0 ? cardCorrect / cardAnswers : null,
+          predictSelections: Number(card.predict_selections)
+        };
+      }),
       recentSessions: recent.rows.map(session => ({
         sessionKey: String(session.session_key),
         startedAt: session.started_at ? new Date(session.started_at).toISOString() : null,
