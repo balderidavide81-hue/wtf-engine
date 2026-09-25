@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111114">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src 'self'; img-src 'self' https: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>WTF? · Play Preview</title>
+  <style>
+    :root{
+      --bg:#0b0b0e;
+      --panel:#151519;
+      --panel2:#1d1d23;
+      --text:#f7f7f8;
+      --muted:#a2a2ad;
+      --line:#303039;
+      --accent:#ffdc4a;
+      --good:#6ee7a6;
+      --bad:#ff7d7d;
+      --predict:#8fb4ff;
+      --shadow:0 24px 80px rgba(0,0,0,.42);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(255,220,74,.11), transparent 31rem),
+        radial-gradient(circle at 100% 24%, rgba(143,180,255,.10), transparent 28rem),
+        var(--bg);
+    }
+    button,a{font:inherit}
+    button{color:inherit}
+    .shell{width:min(720px,100%);margin:0 auto;padding:18px 16px 40px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+    .brand{display:flex;align-items:center;gap:11px;font-weight:900;letter-spacing:-.04em;font-size:25px}
+    .logo{
+      width:42px;height:42px;border-radius:14px;display:grid;place-items:center;
+      color:#111;background:var(--accent);box-shadow:0 10px 28px rgba(255,220,74,.18);
+      transform:rotate(-4deg)
+    }
+    .preview{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800}
+    .score{font-weight:800;font-variant-numeric:tabular-nums}
+    .progressTrack{height:7px;background:#23232a;border-radius:99px;overflow:hidden;margin:0 0 18px}
+    .progressBar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#fff19b);transition:width .3s ease}
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015)),var(--panel);
+      border:1px solid var(--line);border-radius:28px;overflow:hidden;box-shadow:var(--shadow)
+    }
+    .visual{
+      min-height:210px;padding:22px;display:flex;flex-direction:column;justify-content:space-between;
+      background:
+        radial-gradient(circle at 88% 20%, rgba(255,255,255,.12), transparent 10rem),
+        linear-gradient(135deg,#24242c,#111116);
+      position:relative;isolation:isolate
+    }
+    .visual.hasImage{min-height:260px;background-size:cover;background-position:center}
+    .visual.hasImage:after{
+      content:"";position:absolute;inset:0;z-index:-1;
+      background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.76))
+    }
+    .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .pill{
+      display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;
+      background:rgba(0,0,0,.32);backdrop-filter:blur(8px);font-size:12px;font-weight:850;
+      letter-spacing:.035em;text-transform:uppercase;border:1px solid rgba(255,255,255,.13)
+    }
+    .pill.predict{background:rgba(56,93,170,.32);color:#d9e6ff}
+    .categoryIcon{font-size:52px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.28))}
+    .hook{font-size:26px;line-height:1.03;letter-spacing:-.04em;font-weight:900;max-width:600px;margin:18px 0 0}
+    .body{padding:24px}
+    .question{font-size:21px;line-height:1.2;font-weight:800;letter-spacing:-.025em;margin:0 0 18px}
+    .answers{display:grid;gap:10px}
+    .answer{
+      border:1px solid var(--line);background:var(--panel2);border-radius:17px;padding:15px 16px;
+      text-align:left;font-weight:750;line-height:1.25;cursor:pointer;transition:.14s ease;
+      display:flex;align-items:center;gap:12px
+    }
+    .answer:hover:not(:disabled){transform:translateY(-1px);border-color:#4b4b58;background:#24242c}
+    .answer:disabled{cursor:default}
+    .answer .letter{
+      width:28px;height:28px;min-width:28px;border-radius:9px;display:grid;place-items:center;
+      background:#101014;border:1px solid #393943;font-size:12px;color:#d5d5dd
+    }
+    .answer.selected{border-color:#787886}
+    .answer.correct{border-color:rgba(110,231,166,.78);background:rgba(52,138,92,.18)}
+    .answer.wrong{border-color:rgba(255,125,125,.78);background:rgba(150,57,57,.18)}
+    .answer.predicted{border-color:rgba(143,180,255,.8);background:rgba(67,102,174,.2)}
+    .result{margin-top:18px;border-top:1px solid var(--line);padding-top:18px}
+    .resultTitle{font-weight:900;font-size:20px;margin-bottom:7px}
+    .resultText{color:#d1d1d7;line-height:1.45}
+    .source{
+      display:inline-flex;margin-top:14px;color:#e4e4e9;text-decoration:none;font-weight:800;font-size:13px
+    }
+    .source:hover{text-decoration:underline}
+    .footerActions{display:flex;gap:10px;margin-top:18px}
+    .primary,.secondary{
+      border:0;border-radius:16px;padding:14px 17px;font-weight:900;cursor:pointer
+    }
+    .primary{background:var(--accent);color:#151515;flex:1}
+    .secondary{background:#26262d;color:#fff;border:1px solid var(--line)}
+    .primary:disabled{opacity:.45;cursor:default}
+    .loading,.empty{
+      min-height:420px;display:grid;place-items:center;text-align:center;padding:36px;
+      border:1px solid var(--line);border-radius:28px;background:var(--panel);color:var(--muted)
+    }
+    .summary{text-align:center;padding:34px 26px}
+    .summaryBig{font-size:58px;font-weight:950;letter-spacing:-.06em;margin:4px 0}
+    .summarySub{color:var(--muted);line-height:1.5}
+    .tiny{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.45}
+    @media (max-width:520px){
+      .shell{padding:12px 11px 30px}
+      header{margin:4px 3px 13px}
+      .brand{font-size:22px}
+      .logo{width:38px;height:38px;border-radius:12px}
+      .card{border-radius:24px}
+      .visual{min-height:190px;padding:18px}
+      .visual.hasImage{min-height:230px}
+      .hook{font-size:23px}
+      .body{padding:19px}
+      .question{font-size:19px}
+      .answer{padding:14px}
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="logo">W?</div>
+        <div>
+          WTF?
+          <div class="preview">play preview</div>
+        </div>
+      </div>
+      <div id="score" class="score">0 · 0</div>
+    </header>
+    <div class="progressTrack" aria-hidden="true"><div id="progress" class="progressBar"></div></div>
+    <div id="app" class="loading">Carico le cose più assurde che il mondo ha prodotto…</div>
+  </main>
+
+  <script>
+  (() => {
+    "use strict";
+    const $ = id => document.getElementById(id);
+    const state = {
+      cards: [],
+      index: 0,
+      score: 0,
+      answered: 0,
+      result: null,
+      predictedIndex: null,
+      busy: false
+    };
+
+    const categoryEmoji = {
+      animals: "🐊",
+      food: "🌭",
+      science: "🧪",
+      space: "🪐",
+      transport: "🚗",
+      people: "🧍",
+      culture: "🎭",
+      records: "🏆",
+      "film-tv": "🎬"
+    };
+
+    const labels = {
+      MULTIPLE_CHOICE: "Quiz",
+      TRUE_FALSE: "Vero / falso",
+      PREDICT: "Predict"
+    };
+
+    function esc(value) {
+      return String(value ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function updateHeader() {
+      $("score").textContent = state.score + " · " + state.answered;
+      const done = state.cards.length ? state.index / state.cards.length : 0;
+      $("progress").style.width = Math.min(100, Math.max(0, done * 100)) + "%";
+    }
+
+    async function load() {
+      try {
+        const response = await fetch("/api/feed?limit=30");
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || "Feed non disponibile");
+        state.cards = Array.isArray(payload.cards) ? payload.cards : [];
+        if (!state.cards.length) {
+          $("app").className = "empty";
+          $("app").textContent = "Nessuna card pubblicata.";
+          return;
+        }
+        render();
+      } catch (error) {
+        $("app").className = "empty";
+        $("app").innerHTML =
+          "<div><strong>Non riesco a caricare il feed.</strong><div class='tiny'>" +
+          esc(error instanceof Error ? error.message : String(error)) + "</div></div>";
+      }
+    }
+
+    function optionClass(index) {
+      if (state.result) {
+        if (index === state.result.correctOptionIndex) return "answer correct";
+        if (index === state.result.selectedOptionIndex && !state.result.correct) return "answer wrong";
+        return "answer";
+      }
+      if (state.predictedIndex === index) return "answer predicted";
+      return "answer";
+    }
+
+    function render() {
+      updateHeader();
+      if (state.index >= state.cards.length) return renderSummary();
+
+      const card = state.cards[state.index];
+      const isPredict = card.interactionType === "PREDICT";
+      const visualStyle = card.imageUrl
+        ? ' style="background-image:url(&quot;' + esc(card.imageUrl) + '&quot;)"'
+        : "";
+      const visualClass = card.imageUrl ? "visual hasImage" : "visual";
+      const icon = categoryEmoji[card.category] || "🤯";
+
+      $("app").className = "card";
+      $("app").innerHTML = `
+        <section class="${visualClass}"${visualStyle}>
+          <div class="meta">
+            <span class="pill ${isPredict ? "predict" : ""}">${esc(labels[card.interactionType] || card.mode)}</span>
+            <span class="pill">${esc(card.category)}</span>
+            <span class="pill">${state.index + 1}/${state.cards.length}</span>
+          </div>
+          <div>
+            ${card.imageUrl ? "" : '<div class="categoryIcon">'+icon+'</div>'}
+            <div class="hook">${esc(card.hook)}</div>
+          </div>
+        </section>
+        <section class="body">
+          <h1 class="question">${esc(card.question)}</h1>
+          <div class="answers">
+            ${card.options.map((option,index) => `
+              <button class="${optionClass(index)}" data-index="${index}"
+                ${state.result || state.busy ? "disabled" : ""}>
+                <span class="letter">${String.fromCharCode(65 + index)}</span>
+                <span>${esc(option)}</span>
+              </button>
+            `).join("")}
+          </div>
+          ${renderResult(card)}
+          <div class="footerActions">
+            ${state.result || (isPredict && state.predictedIndex !== null)
+              ? '<button id="next" class="primary">Prossima →</button>'
+              : ""}
+          </div>
+        </section>
+      `;
+
+      document.querySelectorAll(".answer").forEach(button => {
+        button.addEventListener("click", () => choose(Number(button.dataset.index)));
+      });
+      $("next")?.addEventListener("click", next);
+    }
+
+    function renderResult(card) {
+      if (state.result) {
+        const title = state.result.correct ? "Giusto. Assurdo, ma giusto." : "Nope. La realtà era peggio.";
+        return `
+          <div class="result">
+            <div class="resultTitle">${esc(title)}</div>
+            <div class="resultText">${esc(state.result.reveal)}</div>
+            <a class="source" href="${esc(card.sourceUrl)}" target="_blank" rel="noopener noreferrer">
+              Fonte · ${esc(card.sourceName)} ↗
+            </a>
+          </div>
+        `;
+      }
+
+      if (card.interactionType === "PREDICT" && state.predictedIndex !== null) {
+        return `
+          <div class="result">
+            <div class="resultTitle">Previsione segnata.</div>
+            <div class="resultText">
+              In questa preview la scelta resta solo per questa sessione. La previsione è ancora aperta:
+              non esiste una risposta corretta da rivelare oggi.
+              ${card.resolutionRule ? "<br><br><strong>Come si chiuderà:</strong> " + esc(card.resolutionRule) : ""}
+            </div>
+            <a class="source" href="${esc(card.sourceUrl)}" target="_blank" rel="noopener noreferrer">
+              Contesto · ${esc(card.sourceName)} ↗
+            </a>
+          </div>
+        `;
+      }
+      return "";
+    }
+
+    async function choose(index) {
+      if (state.busy || state.result) return;
+      const card = state.cards[state.index];
+
+      if (card.interactionType === "PREDICT") {
+        state.predictedIndex = index;
+        render();
+        return;
+      }
+
+      state.busy = true;
+      render();
+      try {
+        const response = await fetch("/api/gameplay-answer", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({cardId: card.id, selectedOptionIndex:index})
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.message || payload?.error || "Risposta non disponibile");
+        state.result = payload;
+        state.answered += 1;
+        if (payload.correct) state.score += 1;
+      } catch (error) {
+        alert(error instanceof Error ? error.message : String(error));
+      } finally {
+        state.busy = false;
+        render();
+      }
+    }
+
+    function next() {
+      state.index += 1;
+      state.result = null;
+      state.predictedIndex = null;
+      state.busy = false;
+      render();
+      window.scrollTo({top:0,behavior:"smooth"});
+    }
+
+    function renderSummary() {
+      $("progress").style.width = "100%";
+      $("app").className = "card";
+      $("app").innerHTML = `
+        <div class="summary">
+          <div class="preview">fine del feed</div>
+          <div class="summaryBig">${state.score}/${state.answered}</div>
+          <div class="summarySub">
+            Risposte corrette sulle card risolvibili.<br>
+            I PREDICT restano fuori dal punteggio finché l'evento non si chiude.
+          </div>
+          <div class="footerActions" style="justify-content:center">
+            <button id="restart" class="primary">Rigioca</button>
+          </div>
+          <div class="tiny">Preview v0.7.0 · dati reali dal feed WTF Engine</div>
+        </div>
+      `;
+      $("restart").addEventListener("click", () => {
+        state.index = 0;
+        state.score = 0;
+        state.answered = 0;
+        state.result = null;
+        state.predictedIndex = null;
+        render();
+      });
+    }
+
+    load();
+  })();
+  </script>
+</body>
+</html>
