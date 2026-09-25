@@ -84,6 +84,7 @@ export interface DraftCardEditInput {
 
 export interface PublicGameCardRecord {
   id: string;
+  editionDate: string;
   mode: "WTF" | "PREDICT" | "STORY";
   interactionType: InteractionType;
   category: GameCategory;
@@ -138,6 +139,8 @@ export type GameplayTelemetryEventType =
   | "predict_selected"
   | "session_completed";
 
+export type GameplayExposure = "fresh" | "repeat" | "unknown";
+
 export interface GameplayTelemetryEventInput {
   sessionId: string;
   eventType: GameplayTelemetryEventType;
@@ -148,6 +151,8 @@ export interface GameplayTelemetryEventInput {
   score?: number;
   answered?: number;
   predictions?: number;
+  editionDate?: string;
+  exposure?: GameplayExposure;
 }
 
 export interface GameplayAnswerTelemetryInput {
@@ -166,6 +171,12 @@ export interface GameplayMetricsRecord {
   correctAnswers: number;
   answerAccuracy: number | null;
   predictSelections: number;
+  freshSessionsStarted: number;
+  repeatSessionsStarted: number;
+  unknownExposureSessionsStarted: number;
+  freshAnswers: number;
+  freshCorrectAnswers: number;
+  freshAnswerAccuracy: number | null;
   averageCardsViewedPerStartedSession: number | null;
   cards: Array<{
     cardId: string;
@@ -177,6 +188,9 @@ export interface GameplayMetricsRecord {
     correctAnswers: number;
     answerAccuracy: number | null;
     predictSelections: number;
+    freshAnswers: number;
+    freshCorrectAnswers: number;
+    freshAnswerAccuracy: number | null;
   }>;
   recentSessions: Array<{
     sessionKey: string;
@@ -187,5 +201,7 @@ export interface GameplayMetricsRecord {
     correctAnswers: number;
     predictions: number;
     maxPosition: number | null;
+    exposure: GameplayExposure;
+    editionDate: string | null;
   }>;
 }

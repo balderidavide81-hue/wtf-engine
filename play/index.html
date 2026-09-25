@@ -139,7 +139,7 @@
     </header>
     <div class="progressTrack" aria-hidden="true"><div id="progress" class="progressBar"></div></div>
     <div id="app" class="loading">Carico le cose più assurde che il mondo ha prodotto…</div>
-    <div class="tiny" style="text-align:center">Questa preview misura anonimamente la singola sessione di gioco. Nessun account o cookie di tracking.</div>
+    <div class="tiny" style="text-align:center">Questa preview misura anonimamente la singola sessione. Il browser conserva solo le date delle edizioni già viste per distinguere prima partita e replay: nessun account, cookie di tracking o ID persistente.</div>
   </main>
 
   <script>
@@ -154,6 +154,8 @@
       result: null,
       predictedIndex: null,
       predictions: 0,
+      editionDate: null,
+      exposure: "unknown",
       sessionId: crypto.randomUUID(),
       viewedCardIds: new Set(),
       sessionStarted: false,
@@ -188,6 +190,28 @@
         .replaceAll("'","&#039;");
     }
 
+    const SEEN_EDITIONS_KEY = "wtf.seenEditions.v1";
+
+    function classifyEditionExposure(editionDate) {
+      if (!editionDate) return "unknown";
+      try {
+        const parsed = JSON.parse(localStorage.getItem(SEEN_EDITIONS_KEY) || "[]");
+        const seen = Array.isArray(parsed)
+          ? parsed.filter(value => typeof value === "string")
+          : [];
+        const exposure = seen.includes(editionDate) ? "repeat" : "fresh";
+        if (exposure === "fresh") {
+          localStorage.setItem(
+            SEEN_EDITIONS_KEY,
+            JSON.stringify([...seen, editionDate].slice(-60))
+          );
+        }
+        return exposure;
+      } catch {
+        return "unknown";
+      }
+    }
+
     function telemetry(eventType, extra={}) {
       fetch("/api/gameplay-answer", {
         method: "POST",
@@ -200,7 +224,11 @@
     function startSession() {
       if (state.sessionStarted) return;
       state.sessionStarted = true;
-      telemetry("session_started", {totalCards:state.cards.length});
+      telemetry("session_started", {
+        totalCards: state.cards.length,
+        editionDate: state.editionDate,
+        exposure: state.exposure
+      });
     }
 
     function completeSession() {
@@ -220,6 +248,7 @@
       state.sessionStarted = false;
       state.sessionCompleted = false;
       state.predictions = 0;
+      state.exposure = state.editionDate ? "repeat" : "unknown";
     }
 
     function updateHeader() {
@@ -233,12 +262,17 @@
         const response = await fetch("/api/feed?limit=30");
         const payload = await response.json();
         if (!response.ok) throw new Error(payload?.error || "Feed non disponibile");
-        state.cards = Array.isArray(payload.cards) ? payload.cards : [];
-        if (!state.cards.length) {
+        const feedCards = Array.isArray(payload.cards) ? payload.cards : [];
+        if (!feedCards.length) {
           $("app").className = "empty";
           $("app").textContent = "Nessuna card pubblicata.";
           return;
         }
+        const latestEditionDate = feedCards.find(card => card.editionDate)?.editionDate;
+        if (!latestEditionDate) throw new Error("Edizione del feed non identificabile.");
+        state.editionDate = latestEditionDate;
+        state.cards = feedCards.filter(card => card.editionDate === latestEditionDate);
+        state.exposure = classifyEditionExposure(latestEditionDate);
         startSession();
         render();
       } catch (error) {
@@ -281,6 +315,8 @@
           <div class="meta">
             <span class="pill ${isPredict ? "predict" : ""}">${esc(labels[card.interactionType] || card.mode)}</span>
             <span class="pill">${esc(card.category)}</span>
+            <span class="pill">${esc(state.editionDate)}</span>
+            <span class="pill">${state.exposure === "fresh" ? "Nuova" : state.exposure === "repeat" ? "Replay" : "Sessione"}</span>
             <span class="pill">${state.index + 1}/${state.cards.length}</span>
           </div>
           <div>
@@ -403,7 +439,7 @@
       $("app").className = "card";
       $("app").innerHTML = `
         <div class="summary">
-          <div class="preview">fine del feed</div>
+          <div class="preview">${state.exposure === "fresh" ? "daily run completata" : "replay completato"} · ${esc(state.editionDate)}</div>
           <div class="summaryBig">${state.score}/${state.answered}</div>
           <div class="summarySub">
             Risposte corrette sulle card risolvibili.<br>
@@ -412,7 +448,7 @@
           <div class="footerActions" style="justify-content:center">
             <button id="restart" class="primary">Rigioca</button>
           </div>
-          <div class="tiny">Preview v0.7.2 · dati reali dal feed WTF Engine · telemetria anonima per singola sessione</div>
+          <div class="tiny">Preview v0.7.3 · Daily Run reale · ${state.exposure === "fresh" ? "prima esposizione" : state.exposure === "repeat" ? "replay" : "esposizione non classificata"}</div>
         </div>
       `;
       $("restart").addEventListener("click", () => {

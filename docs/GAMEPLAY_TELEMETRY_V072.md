@@ -128,3 +128,34 @@ Required order:
 
 No historical play event will be fabricated. The user's earlier v0.7.0 play session predates this
 telemetry and will remain unrecorded.
+
+
+## v0.7.3 — Daily Run exposure classification
+
+The public feed now exposes the edition date on every card. The Play Preview uses only cards from the
+latest published edition, turning the surface into a deterministic Daily Run rather than a rolling mixed feed.
+
+To avoid replay-contaminated difficulty metrics, the browser stores only a bounded list of previously seen
+edition dates under `wtf.seenEditions.v1`. This is not a user identifier and is never sent to the backend.
+For each session, only the derived exposure label is sent:
+
+- `fresh`: first time this browser sees the edition;
+- `repeat`: edition was already seen locally;
+- `unknown`: browser storage was unavailable.
+
+The session start event also stores the edition date in the existing `details` JSONB field. No migration
+is required.
+
+Gameplay metrics now report:
+
+- fresh / repeat / unknown session counts;
+- first-exposure answer count;
+- first-exposure correct-answer count;
+- first-exposure accuracy overall;
+- first-exposure accuracy per card;
+- exposure and edition date for recent anonymous sessions.
+
+Historical v0.7.2 sessions have no exposure metadata and are intentionally reported as `unknown`.
+
+For product-quality decisions, prefer **fresh accuracy** over total accuracy. Replay accuracy remains useful
+for technical smoke tests and memorability observations, but must not be interpreted as card difficulty.

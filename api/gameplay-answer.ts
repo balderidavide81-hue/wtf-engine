@@ -8,6 +8,9 @@ const SESSION_ID_RE =
 const CARD_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const EDITION_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const EXPOSURES = new Set(["fresh", "repeat", "unknown"] as const);
+
 const EVENT_TYPES = new Set<GameplayTelemetryEventType>([
   "session_started",
   "card_viewed",
@@ -42,12 +45,23 @@ async function recordTelemetryEvent(req: VercelRequest, res: VercelResponse) {
   const score = boundedInteger(req.body?.score, 0, 50);
   const answered = boundedInteger(req.body?.answered, 0, 50);
   const predictions = boundedInteger(req.body?.predictions, 0, 50);
+  const editionDate = typeof req.body?.editionDate === "string" ? req.body.editionDate.trim() : undefined;
+  const exposure = typeof req.body?.exposure === "string" ? req.body.exposure : undefined;
 
   if (req.body?.position !== undefined && position === undefined) {
     return res.status(400).json({ error: "invalid_position" });
   }
   if (req.body?.selectedOptionIndex !== undefined && selectedOptionIndex === undefined) {
     return res.status(400).json({ error: "invalid_selected_option_index" });
+  }
+  if (editionDate !== undefined && !EDITION_DATE_RE.test(editionDate)) {
+    return res.status(400).json({ error: "invalid_edition_date" });
+  }
+  if (exposure !== undefined && !EXPOSURES.has(exposure as "fresh" | "repeat" | "unknown")) {
+    return res.status(400).json({ error: "invalid_exposure" });
+  }
+  if (eventType === "session_started" && (!editionDate || !exposure)) {
+    return res.status(400).json({ error: "session_metadata_required" });
   }
   if (eventType === "card_viewed" && !cardId) {
     return res.status(400).json({ error: "card_id_required" });
@@ -66,7 +80,9 @@ async function recordTelemetryEvent(req: VercelRequest, res: VercelResponse) {
       totalCards,
       score,
       answered,
-      predictions
+      predictions,
+      editionDate,
+      exposure: exposure as "fresh" | "repeat" | "unknown" | undefined
     });
     return res.status(204).end();
   } catch (error) {

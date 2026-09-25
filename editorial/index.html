@@ -290,23 +290,31 @@
     $("gameplayTelemetry").classList.remove("hidden");
     const completion = m.completionRate === null ? "—" : Math.round(Number(m.completionRate) * 100) + "%";
     const accuracy = m.answerAccuracy === null ? "—" : Math.round(Number(m.answerAccuracy) * 100) + "%";
+    const freshAccuracy = m.freshAnswerAccuracy === null ? "—" : Math.round(Number(m.freshAnswerAccuracy) * 100) + "%";
     const avgViewed = m.averageCardsViewedPerStartedSession === null ? "—" : Number(m.averageCardsViewedPerStartedSession).toFixed(1);
     $("gameplaySummary").textContent =
       "sessioni " + m.sessionsStarted +
+      " · fresh " + m.freshSessionsStarted +
+      " · replay " + m.repeatSessionsStarted +
+      (m.unknownExposureSessionsStarted ? " · non classificate " + m.unknownExposureSessionsStarted : "") +
       " · completate " + m.sessionsCompleted + " (" + completion + ")" +
       " · card viste " + m.cardsViewed +
       " · media/sessione " + avgViewed +
       " · risposte " + m.answers +
-      " · accuracy " + accuracy +
+      " · accuracy fresh " + freshAccuracy +
+      " · accuracy totale " + accuracy +
       " · predict " + m.predictSelections;
     $("gameplayCards").innerHTML = (m.cards || []).map(card => {
       const accuracy = card.answerAccuracy === null ? "—" : Math.round(Number(card.answerAccuracy) * 100) + "%";
+      const freshAccuracy = card.freshAnswerAccuracy === null ? "—" : Math.round(Number(card.freshAnswerAccuracy) * 100) + "%";
       return '<div class="notice">' +
         '<strong>' + escapeHtml(card.hook) + '</strong>' +
         '<span class="pill right">' + escapeHtml(card.interactionType) + '</span>' +
         '<div style="margin-top:6px">viste ' + card.views +
         " · risposte " + card.answers +
-        " · accuracy " + accuracy +
+        " · fresh " + card.freshAnswers +
+        " · accuracy fresh " + freshAccuracy +
+        " · totale " + accuracy +
         " · predict " + card.predictSelections +
         "</div></div>";
     }).join("");
@@ -314,8 +322,10 @@
       const started = session.startedAt ? new Date(session.startedAt).toLocaleString() : "—";
       return '<div class="notice">' +
         '<strong>Sessione ' + escapeHtml(session.sessionKey) + '</strong>' +
+        '<span class="pill right">' + escapeHtml(session.exposure || "unknown") + '</span>' +
         '<span class="pill right">' + (session.completedAt ? "completata" : "aperta/drop-off") + '</span>' +
         '<div style="margin-top:6px">' + escapeHtml(started) +
+        (session.editionDate ? " · edizione " + escapeHtml(session.editionDate) : "") +
         " · viste " + session.cardsViewed +
         " · risposte " + session.answers +
         " · corrette " + session.correctAnswers +

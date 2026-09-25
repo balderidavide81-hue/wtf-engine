@@ -65,3 +65,11 @@ the existing `POST /api/gameplay-answer` endpoint also accepts non-answer teleme
 server-computed answer telemetry. Editorial operators can inspect aggregate results through authenticated
 `GET /api/editorial-metrics?scope=gameplay&hours=24`. No account, cookie, IP address or device fingerprint is
 intentionally persisted by this telemetry layer.
+
+
+### Daily Run fresh vs repeat
+
+The public Play Preview now plays only the latest published edition and classifies anonymous sessions as
+fresh, repeat or unknown. The browser stores only previously seen edition dates locally; no persistent user
+identifier is created. Editorial gameplay metrics expose first-exposure accuracy separately from replay
+accuracy so repeated play does not distort difficulty assessment.
