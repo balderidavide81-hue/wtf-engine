@@ -189,7 +189,7 @@
     }
 
     function telemetry(eventType, extra={}) {
-      fetch("/api/gameplay-event", {
+      fetch("/api/gameplay-answer", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
         keepalive: true,
