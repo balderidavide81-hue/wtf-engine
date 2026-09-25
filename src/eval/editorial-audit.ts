@@ -74,11 +74,12 @@ function duplicateIssues(
   selector: (card: EditorialCardRecord) => string,
   code: string,
   label: string,
-  severity: AuditSeverity
+  severity: AuditSeverity,
+  normalize: (value: string) => string = normalizeText
 ): EditorialAuditIssue[] {
   const groups = new Map<string, EditorialCardRecord[]>();
   for (const card of cards) {
-    const key = normalizeText(selector(card));
+    const key = normalize(selector(card));
     if (!key) continue;
     const group = groups.get(key) ?? [];
     group.push(card);
@@ -167,6 +168,38 @@ export function auditEditorialEdition(edition: EditorialEditionRecord): Editoria
       });
     }
 
+    try {
+      const url = new URL(card.sourceUrl);
+      if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("unsupported protocol");
+    } catch {
+      issues.push({
+        code: "invalid-source-url",
+        severity: "error",
+        cardId: card.id,
+        message: "Source URL non valida o non HTTP(S)."
+      });
+    }
+
+    if (edition.status === "reviewed" && card.lifecycleStatus !== "reviewed") {
+      issues.push({
+        code: "reviewed-edition-lifecycle-mismatch",
+        severity: "error",
+        cardId: card.id,
+        message: `Edizione reviewed ma card in stato ${card.lifecycleStatus}.`
+      });
+    }
+    if (
+      edition.status === "published"
+      && !["published", "open", "resolved", "void"].includes(card.lifecycleStatus)
+    ) {
+      issues.push({
+        code: "published-edition-lifecycle-mismatch",
+        severity: "error",
+        cardId: card.id,
+        message: `Edizione published ma card attiva in stato ${card.lifecycleStatus}.`
+      });
+    }
+
     if (card.mode === "PREDICT") {
       if (card.lifecycleStatus === "resolved" && card.correctOptionIndex === null) {
         issues.push({
@@ -188,7 +221,22 @@ export function auditEditorialEdition(edition: EditorialEditionRecord): Editoria
   }
 
   issues.push(
-    ...duplicateIssues(activeCards, card => card.sourceUrl, "duplicate-source-url", "Source URL", "error"),
+    ...duplicateIssues(
+      activeCards,
+      card => card.articleId,
+      "duplicate-article",
+      "Article ID",
+      "error",
+      value => value.trim()
+    ),
+    ...duplicateIssues(
+      activeCards,
+      card => card.sourceUrl,
+      "duplicate-source-url",
+      "Source URL",
+      "error",
+      value => value.trim().toLocaleLowerCase()
+    ),
     ...duplicateIssues(activeCards, card => card.question, "duplicate-question", "Domanda", "error"),
     ...duplicateIssues(activeCards, card => card.hook, "duplicate-hook", "Hook", "warning")
   );
