@@ -368,6 +368,7 @@ export class NeonContentStore implements ContentStore {
     return {
       editionDate,
       editionStatus: row.status,
+      telemetryComplete: editionDate >= "2026-09-25",
       totalCards: Number(row.total_cards),
       keptCards: Number(row.kept_cards),
       rejectedCards: Number(row.rejected_cards),

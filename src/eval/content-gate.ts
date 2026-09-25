@@ -1,4 +1,5 @@
 import type { EditorialAuditReport } from "./editorial-audit.js";
+import type { ContentGateMetricsRecord } from "../store/types.js";
 
 export interface ContentGateDay {
   date: string;
@@ -11,6 +12,12 @@ export interface ContentGateDay {
   activeCards: number;
   errorCount: number;
   warningCount: number;
+  telemetryComplete: boolean;
+  cleanKeptCards: number | null;
+  editedCards: number | null;
+  editActions: number | null;
+  rejectActions: number | null;
+  estimatedGenerationCostUsd: number | null;
 }
 
 export interface ContentGateReport {
@@ -29,6 +36,14 @@ export interface ContentGateReport {
   warningCount: number;
   modes: Record<string, number>;
   interactions: Record<string, number>;
+  telemetryCompleteDays: number;
+  telemetryKeptCards: number;
+  telemetryCleanKeptCards: number;
+  telemetryEditedCards: number;
+  telemetryEditActions: number;
+  telemetryRejectActions: number;
+  telemetryEstimatedGenerationCostUsd: number;
+  telemetryCleanKeptRate: number | null;
   days: ContentGateDay[];
 }
 
@@ -77,11 +92,13 @@ export function buildContentGateReport(
   throughDate: string,
   daysRequested: number,
   minActiveCards: number,
-  auditReports: EditorialAuditReport[]
+  auditReports: EditorialAuditReport[],
+  metricsReports: ContentGateMetricsRecord[] = []
 ): ContentGateReport {
   const dates = contentGateDates(throughDate, daysRequested);
   const boundedMinActiveCards = Math.max(1, Math.min(Math.trunc(minActiveCards), 30));
   const byDate = new Map(auditReports.map(report => [report.editionDate, report]));
+  const metricsByDate = new Map(metricsReports.map(report => [report.editionDate, report]));
   const modes: Record<string, number> = {};
   const interactions: Record<string, number> = {};
   const missingDates: string[] = [];
@@ -93,8 +110,17 @@ export function buildContentGateReport(
   let structuralPassDays = 0;
   let minimumVolumePassDays = 0;
 
+  let telemetryCompleteDays = 0;
+  let telemetryKeptCards = 0;
+  let telemetryCleanKeptCards = 0;
+  let telemetryEditedCards = 0;
+  let telemetryEditActions = 0;
+  let telemetryRejectActions = 0;
+  let telemetryEstimatedGenerationCostUsd = 0;
+
   const days: ContentGateDay[] = dates.map(date => {
     const report = byDate.get(date);
+    const metrics = metricsByDate.get(date);
     if (!report) {
       missingDates.push(date);
       return {
@@ -107,7 +133,13 @@ export function buildContentGateReport(
         totalCards: 0,
         activeCards: 0,
         errorCount: 0,
-        warningCount: 0
+        warningCount: 0,
+        telemetryComplete: false,
+        cleanKeptCards: null,
+        editedCards: null,
+        editActions: null,
+        rejectActions: null,
+        estimatedGenerationCostUsd: null
       };
     }
 
@@ -123,6 +155,17 @@ export function buildContentGateReport(
     if (structuralPass) structuralPassDays += 1;
     if (minimumActiveCardsPass) minimumVolumePassDays += 1;
 
+    const telemetryComplete = metrics?.telemetryComplete === true;
+    if (telemetryComplete && metrics) {
+      telemetryCompleteDays += 1;
+      telemetryKeptCards += metrics.keptCards;
+      telemetryCleanKeptCards += metrics.cleanKeptCards;
+      telemetryEditedCards += metrics.editedCards;
+      telemetryEditActions += metrics.editActions;
+      telemetryRejectActions += metrics.rejectActions;
+      telemetryEstimatedGenerationCostUsd += metrics.estimatedGenerationCostUsd;
+    }
+
     return {
       date,
       available: true,
@@ -133,7 +176,15 @@ export function buildContentGateReport(
       totalCards: report.totalCards,
       activeCards: report.activeCards,
       errorCount: report.errorCount,
-      warningCount: report.warningCount
+      warningCount: report.warningCount,
+      telemetryComplete,
+      cleanKeptCards: telemetryComplete && metrics ? metrics.cleanKeptCards : null,
+      editedCards: telemetryComplete && metrics ? metrics.editedCards : null,
+      editActions: telemetryComplete && metrics ? metrics.editActions : null,
+      rejectActions: telemetryComplete && metrics ? metrics.rejectActions : null,
+      estimatedGenerationCostUsd: telemetryComplete && metrics
+        ? metrics.estimatedGenerationCostUsd
+        : null
     };
   });
 
@@ -159,6 +210,15 @@ export function buildContentGateReport(
     warningCount,
     modes,
     interactions,
+    telemetryCompleteDays,
+    telemetryKeptCards,
+    telemetryCleanKeptCards,
+    telemetryEditedCards,
+    telemetryEditActions,
+    telemetryRejectActions,
+    telemetryEstimatedGenerationCostUsd,
+    telemetryCleanKeptRate:
+      telemetryKeptCards > 0 ? telemetryCleanKeptCards / telemetryKeptCards : null,
     days
   };
 }

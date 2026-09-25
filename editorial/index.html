@@ -303,12 +303,20 @@
     }
 
     $("gate").classList.remove("hidden");
+    const telemetryRate = gate.telemetryCleanKeptRate === null
+      ? "—"
+      : Math.round(Number(gate.telemetryCleanKeptRate) * 100) + "%";
     $("gateSummary").textContent =
       (gate.gatePass ? "PASS STRUTTURALE" : "NON ANCORA") +
       " · edizioni " + gate.editionsFound + "/" + gate.daysRequested +
       " · giorni strutturalmente PASS " + gate.structuralPassDays + "/" + gate.daysRequested +
       " · giorni con almeno " + gate.minActiveCards + " card " +
       gate.minimumVolumePassDays + "/" + gate.daysRequested +
+      " · telemetria completa " + gate.telemetryCompleteDays + "/" + gate.daysRequested +
+      " · clean-kept " + telemetryRate +
+      " · edit actions " + gate.telemetryEditActions +
+      " · reject actions " + gate.telemetryRejectActions +
+      " · costo $" + Number(gate.telemetryEstimatedGenerationCostUsd).toFixed(5) +
       " · errori " + gate.errorCount +
       " · warning " + gate.warningCount;
 
@@ -322,7 +330,15 @@
               (day.dayPass ? "PASS" : "da completare") +
               " · card attive " + day.activeCards +
               " · errori " + day.errorCount +
-              " · warning " + day.warningCount
+              " · warning " + day.warningCount +
+              (day.telemetryComplete
+                ? (
+                  " · pulite " + day.cleanKeptCards +
+                  " · edit " + day.editActions +
+                  " · reject " + day.rejectActions +
+                  " · costo $" + Number(day.estimatedGenerationCostUsd).toFixed(5)
+                )
+                : " · telemetria editoriale incompleta")
             )
             : "Nessuna edizione registrata per questa data."}
         </div>
@@ -512,14 +528,21 @@
       const m = state.metrics;
       const coverage = m.totalCards > 0 ? Math.round((m.decidedCards / m.totalCards) * 100) : 0;
       $("telemetry").classList.remove("hidden");
-      $("telemetrySummary").textContent =
-        "decisioni " + m.decidedCards + "/" + m.totalCards + " (" + coverage + "%)" +
-        " · pulite " + m.cleanKeptCards + "/" + m.keptCards +
-        " · editate " + m.editedCards +
-        " · edit actions " + m.editActions +
-        " · scartate " + m.rejectedCards +
-        " · run " + m.generationRunCount +
-        " · costo stimato $" + Number(m.estimatedGenerationCostUsd).toFixed(5);
+      $("telemetrySummary").textContent = m.telemetryComplete
+        ? (
+          "decisioni " + m.decidedCards + "/" + m.totalCards + " (" + coverage + "%)" +
+          " · pulite " + m.cleanKeptCards + "/" + m.keptCards +
+          " · editate " + m.editedCards +
+          " · edit actions " + m.editActions +
+          " · scartate " + m.rejectedCards +
+          " · run " + m.generationRunCount +
+          " · costo stimato $" + Number(m.estimatedGenerationCostUsd).toFixed(5)
+        )
+        : (
+          "telemetria editoriale storica incompleta (attiva dal 25/09/2026)" +
+          " · run " + m.generationRunCount +
+          " · costo generazione stimato $" + Number(m.estimatedGenerationCostUsd).toFixed(5)
+        );
     } else {
       $("telemetry").classList.add("hidden");
       $("telemetrySummary").textContent = "";

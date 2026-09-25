@@ -53,6 +53,7 @@ export interface EditorialEditionRecord extends DailyEditionRecord {
 export interface ContentGateMetricsRecord {
   editionDate: string;
   editionStatus: EditionStatus;
+  telemetryComplete: boolean;
   totalCards: number;
   keptCards: number;
   rejectedCards: number;
