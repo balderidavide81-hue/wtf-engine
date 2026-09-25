@@ -50,6 +50,28 @@ export interface EditorialEditionRecord extends DailyEditionRecord {
   cards: EditorialCardRecord[];
 }
 
+export interface ContentGateMetricsRecord {
+  editionDate: string;
+  editionStatus: EditionStatus;
+  totalCards: number;
+  keptCards: number;
+  rejectedCards: number;
+  decidedCards: number;
+  editedCards: number;
+  editedKeptCards: number;
+  cleanKeptCards: number;
+  editActions: number;
+  reviewActions: number;
+  rejectActions: number;
+  generationRunCount: number;
+  estimatedGenerationCostUsd: number;
+  firstEditorialEventAt: string | null;
+  lastEditorialEventAt: string | null;
+  lifecycle: Record<CardLifecycleStatus, number>;
+  modes: Record<"WTF" | "PREDICT" | "STORY", number>;
+  interactions: Record<InteractionType, number>;
+}
+
 export interface DraftCardEditInput {
   hook: string;
   question: string;

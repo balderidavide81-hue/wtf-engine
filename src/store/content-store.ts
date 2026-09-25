@@ -10,7 +10,8 @@ import type {
   PredictionResolutionInput,
   PredictionVoidInput,
   DraftCardEditInput,
-  GameplayAnswerRecord
+  GameplayAnswerRecord,
+  ContentGateMetricsRecord
 } from "./types.js";
 
 export interface ContentStore {
@@ -28,6 +29,7 @@ export interface ContentStore {
 
   getEdition(editionDate: string): Promise<DailyEditionRecord | null>;
   getEditorialEdition(editionDate: string): Promise<EditorialEditionRecord | null>;
+  getContentGateMetrics(editionDate: string): Promise<ContentGateMetricsRecord | null>;
   getPublishedEdition(editionDate: string): Promise<PublicEditionRecord | null>;
   getPublishedFeed(limit: number, before?: string): Promise<PublicFeedRecord>;
   answerPublishedCard(cardId: string, selectedOptionIndex: number): Promise<GameplayAnswerRecord | null>;
