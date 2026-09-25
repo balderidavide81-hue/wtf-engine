@@ -422,6 +422,7 @@ export class NeonContentStore implements ContentStore {
         const voided = row.lifecycle_status === "void";
         return {
           id: String(row.id),
+          editionDate: String(row.edition_date),
           mode: row.mode,
           interactionType: row.interaction_type,
           category: row.category,
@@ -695,16 +696,19 @@ export class NeonContentStore implements ContentStore {
     }
 
     const result = await this.pool.query(
-      `select gc.id, gc.mode, gc.interaction_type, gc.category, gc.hook, gc.question, gc.options,
-              gc.resolution_rule, gc.correct_option_index, gc.reveal, gc.lifecycle_status,
-              gc.resolution, gc.published_at, a.source_name, a.source_url,
-              a.image_url_original, a.image_url_cached, a.image_alt_text, a.image_usage_status
+      `select de.edition_date::text, dec.position, gc.id, gc.mode, gc.interaction_type, gc.category,
+              gc.hook, gc.question, gc.options, gc.resolution_rule, gc.correct_option_index,
+              gc.reveal, gc.lifecycle_status, gc.resolution, gc.published_at,
+              a.source_name, a.source_url, a.image_url_original, a.image_url_cached,
+              a.image_alt_text, a.image_usage_status
          from game_cards gc
+         join daily_edition_cards dec on dec.card_id=gc.id
+         join daily_editions de on de.id=dec.edition_id and de.status='published'
          join articles a on a.id=gc.article_id
         where gc.lifecycle_status in ('published','open','resolved','void')
           and gc.published_at is not null
           and ($2::timestamptz is null or gc.published_at < $2::timestamptz)
-        order by gc.published_at desc, gc.id
+        order by de.edition_date desc, dec.position, gc.id
         limit $1`,
       [boundedLimit, beforeDate?.toISOString() ?? null]
     );
@@ -714,6 +718,7 @@ export class NeonContentStore implements ContentStore {
       const voided = row.lifecycle_status === "void";
       return {
         id: String(row.id),
+        editionDate: String(row.edition_date),
         mode: row.mode,
         interactionType: row.interaction_type,
         category: row.category,
@@ -798,11 +803,13 @@ export class NeonContentStore implements ContentStore {
     let eventKey: string;
     let cardId: string | null = null;
     let selectedOptionIndex: number | null = null;
-    let details: Record<string, number> = {};
+    let details: Record<string, number | string> = {};
 
     if (input.eventType === "session_started") {
       eventKey = "start";
       if (input.totalCards !== undefined) details.totalCards = input.totalCards;
+      if (input.editionDate !== undefined) details.editionDate = input.editionDate;
+      if (input.exposure !== undefined) details.exposure = input.exposure;
     } else if (input.eventType === "session_completed") {
       eventKey = "complete";
       if (input.totalCards !== undefined) details.totalCards = input.totalCards;
@@ -865,22 +872,47 @@ export class NeonContentStore implements ContentStore {
   async getGameplayMetrics(hours: number): Promise<GameplayMetricsRecord> {
     const boundedHours = Math.max(1, Math.min(Math.trunc(hours), 168));
     const summary = await this.pool.query(
-      `select
-          min(created_at) as first_event_at,
-          (count(distinct session_id) filter (where event_type='session_started'))::int as sessions_started,
-          (count(distinct session_id) filter (where event_type='session_completed'))::int as sessions_completed,
-          (count(*) filter (where event_type='card_viewed'))::int as cards_viewed,
-          (count(distinct card_id) filter (where event_type='card_viewed'))::int as unique_cards_viewed,
-          (count(*) filter (where event_type='card_answered'))::int as answers,
-          (count(*) filter (where event_type='card_answered' and correct is true))::int as correct_answers,
-          (count(*) filter (where event_type='predict_selected'))::int as predict_selections
-         from gameplay_events
-        where created_at >= now() - make_interval(hours => $1)`,
+      `with scoped as (
+          select * from gameplay_events
+           where created_at >= now() - make_interval(hours => $1)
+        ),
+        session_meta as (
+          select session_id,
+                 coalesce(max(details->>'exposure') filter (where event_type='session_started'), 'unknown') as exposure
+            from scoped
+           group by session_id
+        )
+        select
+          min(ge.created_at) as first_event_at,
+          (count(distinct ge.session_id) filter (where ge.event_type='session_started'))::int as sessions_started,
+          (count(distinct ge.session_id) filter (where ge.event_type='session_completed'))::int as sessions_completed,
+          (count(*) filter (where ge.event_type='card_viewed'))::int as cards_viewed,
+          (count(distinct ge.card_id) filter (where ge.event_type='card_viewed'))::int as unique_cards_viewed,
+          (count(*) filter (where ge.event_type='card_answered'))::int as answers,
+          (count(*) filter (where ge.event_type='card_answered' and ge.correct is true))::int as correct_answers,
+          (count(*) filter (where ge.event_type='predict_selected'))::int as predict_selections,
+          (count(distinct ge.session_id) filter (where ge.event_type='session_started' and sm.exposure='fresh'))::int as fresh_sessions_started,
+          (count(distinct ge.session_id) filter (where ge.event_type='session_started' and sm.exposure='repeat'))::int as repeat_sessions_started,
+          (count(distinct ge.session_id) filter (where ge.event_type='session_started' and sm.exposure not in ('fresh','repeat')))::int as unknown_exposure_sessions_started,
+          (count(*) filter (where ge.event_type='card_answered' and sm.exposure='fresh'))::int as fresh_answers,
+          (count(*) filter (where ge.event_type='card_answered' and ge.correct is true and sm.exposure='fresh'))::int as fresh_correct_answers
+        from scoped ge
+        left join session_meta sm on sm.session_id=ge.session_id`,
       [boundedHours]
     );
 
     const cardMetrics = await this.pool.query(
-      `select
+      `with scoped as (
+          select * from gameplay_events
+           where created_at >= now() - make_interval(hours => $1)
+        ),
+        session_meta as (
+          select session_id,
+                 coalesce(max(details->>'exposure') filter (where event_type='session_started'), 'unknown') as exposure
+            from scoped
+           group by session_id
+        )
+        select
           ge.card_id,
           gc.hook,
           gc.mode,
@@ -888,13 +920,15 @@ export class NeonContentStore implements ContentStore {
           (count(*) filter (where ge.event_type='card_viewed'))::int as views,
           (count(*) filter (where ge.event_type='card_answered'))::int as answers,
           (count(*) filter (where ge.event_type='card_answered' and ge.correct is true))::int as correct_answers,
-          (count(*) filter (where ge.event_type='predict_selected'))::int as predict_selections
-         from gameplay_events ge
-         join game_cards gc on gc.id=ge.card_id
-        where ge.created_at >= now() - make_interval(hours => $1)
-          and ge.card_id is not null
-        group by ge.card_id, gc.hook, gc.mode, gc.interaction_type
-        order by views desc, answers desc, ge.card_id`,
+          (count(*) filter (where ge.event_type='predict_selected'))::int as predict_selections,
+          (count(*) filter (where ge.event_type='card_answered' and sm.exposure='fresh'))::int as fresh_answers,
+          (count(*) filter (where ge.event_type='card_answered' and ge.correct is true and sm.exposure='fresh'))::int as fresh_correct_answers
+        from scoped ge
+        join session_meta sm on sm.session_id=ge.session_id
+        join game_cards gc on gc.id=ge.card_id
+       where ge.card_id is not null
+       group by ge.card_id, gc.hook, gc.mode, gc.interaction_type
+       order by views desc, answers desc, ge.card_id`,
       [boundedHours]
     );
 
@@ -908,6 +942,8 @@ export class NeonContentStore implements ContentStore {
           (count(*) filter (where event_type='card_answered' and correct is true))::int as correct_answers,
           (count(*) filter (where event_type='predict_selected'))::int as predictions,
           max(position) filter (where position is not null) as max_position,
+          coalesce(max(details->>'exposure') filter (where event_type='session_started'), 'unknown') as exposure,
+          max(details->>'editionDate') filter (where event_type='session_started') as edition_date,
           min(created_at) as first_event_at
          from gameplay_events
         where created_at >= now() - make_interval(hours => $1)
@@ -923,6 +959,8 @@ export class NeonContentStore implements ContentStore {
     const cardsViewed = Number(row.cards_viewed);
     const answers = Number(row.answers);
     const correctAnswers = Number(row.correct_answers);
+    const freshAnswers = Number(row.fresh_answers);
+    const freshCorrectAnswers = Number(row.fresh_correct_answers);
 
     return {
       since: new Date(Date.now() - boundedHours * 60 * 60 * 1000).toISOString(),
@@ -935,11 +973,19 @@ export class NeonContentStore implements ContentStore {
       correctAnswers,
       answerAccuracy: answers > 0 ? correctAnswers / answers : null,
       predictSelections: Number(row.predict_selections),
+      freshSessionsStarted: Number(row.fresh_sessions_started),
+      repeatSessionsStarted: Number(row.repeat_sessions_started),
+      unknownExposureSessionsStarted: Number(row.unknown_exposure_sessions_started),
+      freshAnswers,
+      freshCorrectAnswers,
+      freshAnswerAccuracy: freshAnswers > 0 ? freshCorrectAnswers / freshAnswers : null,
       averageCardsViewedPerStartedSession:
         sessionsStarted > 0 ? cardsViewed / sessionsStarted : null,
       cards: cardMetrics.rows.map(card => {
         const cardAnswers = Number(card.answers);
         const cardCorrect = Number(card.correct_answers);
+        const freshCardAnswers = Number(card.fresh_answers);
+        const freshCardCorrect = Number(card.fresh_correct_answers);
         return {
           cardId: String(card.card_id),
           hook: String(card.hook),
@@ -949,7 +995,10 @@ export class NeonContentStore implements ContentStore {
           answers: cardAnswers,
           correctAnswers: cardCorrect,
           answerAccuracy: cardAnswers > 0 ? cardCorrect / cardAnswers : null,
-          predictSelections: Number(card.predict_selections)
+          predictSelections: Number(card.predict_selections),
+          freshAnswers: freshCardAnswers,
+          freshCorrectAnswers: freshCardCorrect,
+          freshAnswerAccuracy: freshCardAnswers > 0 ? freshCardCorrect / freshCardAnswers : null
         };
       }),
       recentSessions: recent.rows.map(session => ({
@@ -960,7 +1009,11 @@ export class NeonContentStore implements ContentStore {
         answers: Number(session.answers),
         correctAnswers: Number(session.correct_answers),
         predictions: Number(session.predictions),
-        maxPosition: session.max_position === null ? null : Number(session.max_position)
+        maxPosition: session.max_position === null ? null : Number(session.max_position),
+        exposure: ["fresh","repeat"].includes(String(session.exposure))
+          ? session.exposure
+          : "unknown",
+        editionDate: session.edition_date ? String(session.edition_date) : null
       }))
     };
   }
