@@ -1,0 +1,75 @@
+name: Generate Daily Edition
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum candidates sent to the daily pipeline"
+        required: true
+        default: "30"
+        type: choice
+        options:
+          - "15"
+          - "30"
+      confirm_cost:
+        description: "I understand this run may incur OpenAI API cost"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: wtf-engine-manual-daily-generation
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Require explicit cost confirmation
+        if: ${{ !inputs.confirm_cost }}
+        run: |
+          echo "Cost confirmation was not checked."
+          exit 1
+
+      - name: Request GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=wtf-engine-daily")"
+          TOKEN="$(jq -r '.value // empty' <<<"$RESPONSE")"
+          test -n "$TOKEN"
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Generate production Daily Edition
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          LIMIT: ${{ inputs.limit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE_FILE="$RUNNER_TEMP/wtf-daily-response.json"
+          HTTP_CODE="$(curl --silent --show-error \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            --request POST \
+            --header "Authorization: Bearer ${OIDC_TOKEN}" \
+            "https://wtf-engine.vercel.app/api/daily?limit=${LIMIT}")"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Daily generation failed with HTTP ${HTTP_CODE}."
+            jq -r '.error // "unknown_error"' "$RESPONSE_FILE" 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Daily generation completed successfully." >> "$GITHUB_STEP_SUMMARY"
+          echo "Candidate limit: ${LIMIT}" >> "$GITHUB_STEP_SUMMARY"
+          echo "The generated payload is intentionally not printed because this repository is public." >> "$GITHUB_STEP_SUMMARY"
