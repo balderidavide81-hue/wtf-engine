@@ -44,9 +44,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const store = new NeonContentStore();
     const dates = contentGateDates(throughDate, days);
     const editions = await Promise.all(dates.map(date => store.getEditorialEdition(date)));
-    const audits = editions
-      .filter(edition => edition !== null)
-      .map(edition => auditEditorialEdition(edition!));
+    const audits = editions.flatMap(edition =>
+      edition ? [auditEditorialEdition(edition)] : []
+    );
 
     return res.status(200).json(
       buildContentGateReport(throughDate, days, minActiveCards, audits)
