@@ -80,6 +80,12 @@
     </div>
   </section>
 
+  <section id="audit" class="panel statusbar hidden">
+    <strong>Audit deterministic</strong>
+    <span id="auditSummary" class="muted small"></span>
+  </section>
+  <section id="auditIssues" class="grid"></section>
+
   <section id="cards" class="grid"></section>
 </main>
 
@@ -87,7 +93,7 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  const state = { edition: null, token: "" };
+  const state = { edition: null, audit: null, token: "" };
   const today = new Date();
   $("date").value = [
     today.getFullYear(),
@@ -128,15 +134,38 @@
     return payload;
   }
 
+  async function loadAudit() {
+    const date = $("date").value;
+    const response = await fetch("/api/editorial-audit?date=" + encodeURIComponent(date), {
+      method: "GET",
+      headers: { "Authorization": "Bearer " + state.token }
+    });
+    if (response.status === 404) return null;
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    if (!response.ok) {
+      const detail = payload?.message || payload?.error || ("HTTP " + response.status);
+      throw new Error(detail);
+    }
+    return payload;
+  }
+
   async function loadEdition(showSuccess=false) {
     hideMessage();
     $("load").disabled = true;
     try {
       state.edition = await api("GET");
+      try {
+        state.audit = await loadAudit();
+      } catch (auditError) {
+        console.warn("editorial_audit_unavailable", auditError);
+        state.audit = null;
+      }
       render();
       if (showSuccess) message("Edizione ricaricata.", "ok");
     } catch (err) {
       state.edition = null;
+      state.audit = null;
       render();
       message(err instanceof Error ? err.message : String(err), "error");
     } finally {
@@ -255,6 +284,8 @@
     const edition = state.edition;
     if (!edition) {
       $("summary").classList.add("hidden");
+      $("audit").classList.add("hidden");
+      $("auditIssues").innerHTML = "";
       $("cards").innerHTML = "";
       return;
     }
@@ -263,6 +294,29 @@
     $("editionStatus").textContent = edition.status;
     $("editionStatus").className = "pill " + edition.status;
     $("counts").textContent = edition.cards.length + " card · " + editionCounts();
+
+    if (state.audit) {
+      const a = state.audit;
+      $("audit").classList.remove("hidden");
+      $("auditSummary").textContent =
+        (a.pass ? "PASS" : "FAIL") +
+        " · errori " + a.errorCount +
+        " · warning " + a.warningCount +
+        " · attive " + a.activeCards + "/" + a.totalCards +
+        " · fonti " + a.uniqueSourceCount +
+        " · fonte max " + Math.round(Number(a.topSourceShare) * 100) + "%";
+      $("auditIssues").innerHTML = a.issues.map(issue => `
+        <div class="notice ${issue.severity === "error" ? "error" : ""}">
+          <strong>${escapeHtml(issue.severity.toUpperCase())} · ${escapeHtml(issue.code)}</strong>
+          ${issue.cardId ? '<span class="pill right">'+escapeHtml(issue.cardId)+'</span>' : ''}
+          <div style="margin-top:6px">${escapeHtml(issue.message)}</div>
+        </div>
+      `).join("");
+    } else {
+      $("audit").classList.add("hidden");
+      $("auditIssues").innerHTML = "";
+    }
+
     $("reviewEdition").disabled = !canReviewEdition();
     $("publishEdition").disabled = edition.status !== "reviewed";
     $("cards").innerHTML = edition.cards.map(renderCard).join("");
