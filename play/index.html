@@ -191,6 +191,7 @@
     }
 
     const SEEN_EDITIONS_KEY = "wtf.seenEditions.v1";
+    const FRESH_CLASSIFICATION_START = "2026-09-26";
 
     function classifyEditionExposure(editionDate) {
       if (!editionDate) return "unknown";
@@ -199,13 +200,12 @@
         const seen = Array.isArray(parsed)
           ? parsed.filter(value => typeof value === "string")
           : [];
-        const exposure = seen.includes(editionDate) ? "repeat" : "fresh";
-        if (exposure === "fresh") {
-          localStorage.setItem(
-            SEEN_EDITIONS_KEY,
-            JSON.stringify([...seen, editionDate].slice(-60))
-          );
-        }
+        if (seen.includes(editionDate)) return "repeat";
+        const exposure = editionDate >= FRESH_CLASSIFICATION_START ? "fresh" : "unknown";
+        localStorage.setItem(
+          SEEN_EDITIONS_KEY,
+          JSON.stringify([...seen, editionDate].slice(-60))
+        );
         return exposure;
       } catch {
         return "unknown";

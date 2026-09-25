@@ -159,3 +159,18 @@ Historical v0.7.2 sessions have no exposure metadata and are intentionally repor
 
 For product-quality decisions, prefer **fresh accuracy** over total accuracy. Replay accuracy remains useful
 for technical smoke tests and memorability observations, but must not be interpreted as card difficulty.
+
+
+### Legacy-edition classification guard
+
+Because local seen-edition state did not exist before v0.7.3, an old edition could otherwise be falsely
+classified as fresh the first time it is opened after the upgrade.
+
+Guardrail:
+
+- editions dated before 2026-09-26 are classified as `unknown` on their first v0.7.3 opening;
+- that edition date is then remembered locally;
+- later openings are `repeat`;
+- only editions dated 2026-09-26 or later can produce a first-use `fresh` label.
+
+This keeps the first-exposure metrics conservative and prevents historical runs from polluting fresh accuracy.
