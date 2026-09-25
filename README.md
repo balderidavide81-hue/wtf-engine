@@ -40,6 +40,7 @@ usage is approved.
 - `GET|POST /api/editorial?date=YYYY-MM-DD` — editorial token
 - `GET /api/editorial-audit?date=YYYY-MM-DD` — editorial token, read-only deterministic edition audit
 - `GET /api/editorial-gate?through=YYYY-MM-DD&days=7&minActive=5` — editorial token, read-only multi-day gate
+- `GET /api/predict-source-health?source=<id>` — editorial token, manual registered-source runtime probe
 - `GET /api/gameplay-daily?date=YYYY-MM-DD`
 - `GET /api/feed?limit=30&before=<ISO timestamp>`
 
