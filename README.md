@@ -50,3 +50,9 @@ verified there and applied to the production Neon main branch before the v0.6 so
 
 
 Manual editorial operations: the internal console can trigger the authenticated daily-generation endpoint explicitly; no cron is configured.
+
+
+## Play preview
+
+The public mobile-first gameplay preview is available at `/play/`. It consumes the production feed and
+answer APIs, keeps PREDICT unresolved, and exposes sources only as part of the gameplay/reveal flow.
