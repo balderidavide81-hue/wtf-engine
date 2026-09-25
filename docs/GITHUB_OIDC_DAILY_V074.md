@@ -1,6 +1,6 @@
 # GitHub OIDC Manual Daily Generation — v0.7.4
 
-Status: source-ready; production activation requires merge + Vercel READY.
+Status: ACTIVE in production as of 2026-09-26. Main commit `42e7b5b`; Vercel production deployment reached READY.
 
 ## Goal
 
@@ -64,7 +64,14 @@ Therefore:
 
 ## Activation smoke
 
-After deployment:
+Deployment smoke completed:
+
+- production Vercel build/typecheck passed;
+- deployment reached READY;
+- `GET /api/daily` returns 405 with `Allow: POST` and `Cache-Control: no-store`;
+- API function count remains within the 12-function Hobby limit.
+
+Remaining first-use smoke:
 
 1. unauthenticated `POST /api/daily` must remain 401;
 2. normal GET must remain 405;
