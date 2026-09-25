@@ -180,6 +180,17 @@ export function auditEditorialEdition(edition: EditorialEditionRecord): Editoria
       });
     }
 
+    if (
+      edition.status === "draft"
+      && !["draft", "reviewed"].includes(card.lifecycleStatus)
+    ) {
+      issues.push({
+        code: "draft-edition-lifecycle-mismatch",
+        severity: "error",
+        cardId: card.id,
+        message: `Edizione draft ma card attiva in stato ${card.lifecycleStatus}.`
+      });
+    }
     if (edition.status === "reviewed" && card.lifecycleStatus !== "reviewed") {
       issues.push({
         code: "reviewed-edition-lifecycle-mismatch",
@@ -201,12 +212,20 @@ export function auditEditorialEdition(edition: EditorialEditionRecord): Editoria
     }
 
     if (card.mode === "PREDICT") {
-      if (card.lifecycleStatus === "resolved" && card.correctOptionIndex === null) {
+      if (
+        card.lifecycleStatus === "resolved"
+        && (
+          card.correctOptionIndex === null
+          || !Number.isInteger(card.correctOptionIndex)
+          || card.correctOptionIndex < 0
+          || card.correctOptionIndex >= card.options.length
+        )
+      ) {
         issues.push({
-          code: "resolved-predict-missing-answer",
+          code: "resolved-predict-invalid-answer",
           severity: "error",
           cardId: card.id,
-          message: "PREDICT resolved senza correctOptionIndex."
+          message: "PREDICT resolved senza un correctOptionIndex valido."
         });
       }
       if (card.lifecycleStatus !== "resolved" && card.correctOptionIndex !== null) {
