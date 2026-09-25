@@ -70,6 +70,29 @@ jobs:
             exit 1
           fi
 
-          echo "Daily generation completed successfully." >> "$GITHUB_STEP_SUMMARY"
-          echo "Candidate limit: ${LIMIT}" >> "$GITHUB_STEP_SUMMARY"
-          echo "The generated payload is intentionally not printed because this repository is public." >> "$GITHUB_STEP_SUMMARY"
+          EDITION_DATE="$(jq -r '.persistence.editionDate // "none"' "$RESPONSE_FILE")"
+          SCOUTED="$(jq -r '.scouted // 0' "$RESPONSE_FILE")"
+          ELIGIBLE="$(jq -r '.editorEligible // 0' "$RESPONSE_FILE")"
+          EDITED="$(jq -r '.edited // 0' "$RESPONSE_FILE")"
+          NEW_CARDS="$(jq -r '(.persistence.newCardIds // []) | length' "$RESPONSE_FILE")"
+          EDITION_CARDS="$(jq -r '(.persistence.editionCardIds // []) | length' "$RESPONSE_FILE")"
+          PREVIOUSLY_PROCESSED="$(jq -r '.previouslyProcessed // 0' "$RESPONSE_FILE")"
+          PREVIOUSLY_KNOWN="$(jq -r '.previouslyKnownStories // 0' "$RESPONSE_FILE")"
+          COST_USD="$(jq -r '.ai.totalEstimatedCostUsd // 0' "$RESPONSE_FILE")"
+
+          {
+            echo "### WTF Engine Daily generation"
+            echo ""
+            echo "- Edition: ${EDITION_DATE}"
+            echo "- Candidate limit: ${LIMIT}"
+            echo "- Scouted: ${SCOUTED}"
+            echo "- Editor eligible: ${ELIGIBLE}"
+            echo "- Cards produced this run: ${EDITED}"
+            echo "- New cards persisted: ${NEW_CARDS}"
+            echo "- Total cards in draft edition: ${EDITION_CARDS}"
+            echo "- Previously processed candidates skipped: ${PREVIOUSLY_PROCESSED}"
+            echo "- Previously known stories skipped: ${PREVIOUSLY_KNOWN}"
+            printf -- "- Estimated AI cost: $%.6f\n" "$COST_USD"
+            echo ""
+            echo "Card text, IDs and source payloads are intentionally not printed because this repository is public."
+          } >> "$GITHUB_STEP_SUMMARY"
