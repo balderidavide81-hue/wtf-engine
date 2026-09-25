@@ -64,11 +64,12 @@ Allowed events:
 
 ## Public endpoints
 
-### POST /api/gameplay-event
+### POST /api/gameplay-answer (telemetry event shape)
 
-Records non-answer events.
+The existing gameplay-answer function now multiplexes two POST shapes: quiz answers and anonymous telemetry events.
+This avoids creating an additional Serverless Function on Vercel's 12-function Hobby limit.
 
-The browser can submit only a supported event shape. Arbitrary metadata is not accepted.
+For telemetry events, the browser can submit only a supported event shape. Arbitrary metadata is not accepted.
 
 ### POST /api/gameplay-answer
 
@@ -83,7 +84,7 @@ Existing clients that omit session telemetry remain compatible.
 
 Authenticated:
 
-`GET /api/gameplay-metrics?hours=24`
+`GET /api/editorial-metrics?scope=gameplay&hours=24`
 
 Allowed window: 1-168 hours.
 
@@ -105,7 +106,7 @@ The editorial console exposes 24h, 72h and 7-day views.
 
 Telemetry is best-effort on the player surface.
 
-If `/api/gameplay-event` fails, gameplay continues. Quiz answer telemetry is attached to the real answer
+If the telemetry-event POST to `/api/gameplay-answer` fails, gameplay continues. Quiz answer telemetry is attached to the real answer
 request, but the answer result itself remains authoritative.
 
 ## Deployment order
@@ -119,10 +120,11 @@ Required order:
 3. apply migration 004 to WTF Engine production `main`;
 4. verify the production schema is empty and correct;
 5. merge the v0.7.2 code;
-6. wait for Vercel READY;
-7. smoke the public event endpoint and authenticated metrics endpoint;
-8. play a fresh session in `/play/`;
-9. confirm the session and per-card events appear in the editorial console.
+6. keep the API surface at or below Vercel's 12 Serverless Function limit by reusing existing endpoints;
+7. wait for Vercel READY;
+8. smoke the multiplexed public gameplay endpoint and authenticated metrics scope;
+9. play a fresh session in `/play/`;
+10. confirm the session and per-card events appear in the editorial console.
 
 No historical play event will be fabricated. The user's earlier v0.7.0 play session predates this
 telemetry and will remain unrecorded.
